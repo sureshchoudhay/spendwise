@@ -1,26 +1,35 @@
 // api/categorize.js
-// Vercel Serverless Function — proxies requests to Anthropic API
-// This runs server-side so there are no CORS issues and the API key stays secret.
+// Vercel Serverless Function — proxies Anthropic API requests server-side.
+// IMPORTANT: Uses ANTHROPIC_API_KEY (no VITE_ prefix) because VITE_ variables
+// are build-time only and are NOT available in serverless functions at runtime.
 
 export default async function handler(req, res) {
-  // Only allow POST
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  const apiKey = process.env.VITE_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // Works whether you set ANTHROPIC_API_KEY or VITE_ANTHROPIC_API_KEY in Vercel
+  const apiKey =
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.VITE_ANTHROPIC_API_KEY;
+
   if (!apiKey) {
     return res.status(500).json({
-      error: "API key not configured. Add VITE_ANTHROPIC_API_KEY in Vercel → Settings → Environment Variables, then Redeploy."
+      error:
+        "API key not set. In Vercel → your project → Settings → Environment Variables, add ANTHROPIC_API_KEY = sk-ant-... then Redeploy.",
     });
   }
 
-  try {
-    const { text } = req.body;
-    if (!text || typeof text !== "string") {
-      return res.status(400).json({ error: "Missing text in request body" });
-    }
+  const { text } = req.body || {};
+  if (!text || typeof text !== "string") {
+    return res.status(400).json({ error: "Missing text field in request body" });
+  }
 
+  try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -57,7 +66,7 @@ Rules:
     if (!response.ok) {
       const errBody = await response.json().catch(() => ({}));
       return res.status(response.status).json({
-        error: errBody?.error?.message || `Anthropic API error ${response.status}`,
+        error: errBody?.error?.message || `Anthropic API returned ${response.status}`,
       });
     }
 
@@ -68,7 +77,7 @@ Rules:
 
     return res.status(200).json({ transactions: parsed });
   } catch (err) {
-    console.error("Categorize error:", err);
+    console.error("categorize error:", err);
     return res.status(500).json({ error: err.message || "Internal server error" });
   }
 }
