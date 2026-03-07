@@ -35,12 +35,10 @@ async function extractTextFromPDF(arrayBuffer) {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    // Sort items by vertical position then horizontal to preserve row order
     const items = content.items.slice().sort((a, b) => {
       const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]);
       return yDiff !== 0 ? yDiff : a.transform[4] - b.transform[4];
     });
-    // Group into rows (items within 3px vertical distance = same row)
     const rows = [];
     let currentRow = [];
     let lastY = null;
@@ -57,7 +55,8 @@ async function extractTextFromPDF(arrayBuffer) {
     if (currentRow.length) rows.push(currentRow.join("  "));
     fullText += rows.join("\n") + "\n\n";
   }
-  return fullText.trim();
+  // Return both text and page count so we don't need a second buffer read
+  return { text: fullText.trim(), pages: pdf.numPages };
 }
 
 // ─── Claude API ───────────────────────────────────────────────────────────────
@@ -274,9 +273,9 @@ export default function App() {
       setPdfLoading(true);
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const text = await extractTextFromPDF(arrayBuffer);
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        setPdfInfo({ name: file.name, pages: pdf.numPages });
+        // slice(0) copies the buffer so PDF.js doesn't detach the original
+        const { text, pages } = await extractTextFromPDF(arrayBuffer.slice(0));
+        setPdfInfo({ name: file.name, pages });
         setBankText(text);
       } catch (err) {
         setBankError("Could not read PDF: " + err.message);
