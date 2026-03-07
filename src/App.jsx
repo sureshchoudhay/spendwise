@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+// Use the bundled worker so no separate file is needed
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+  import.meta.url
+).toString();
 
 const CATEGORIES = [
   { id: "food",          label: "Food & Dining",    icon: "🍜", color: "#FF6B6B" },
@@ -21,6 +27,38 @@ function genId() { return Math.random().toString(36).slice(2) + Date.now().toStr
 function getMonthKey(date) { const d = new Date(date); return `${d.getFullYear()}-${d.getMonth()}`; }
 function getCatInfo(id) { return CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1]; }
 function MonthLabel(key) { const [y, m] = key.split("-").map(Number); return `${MONTHS[m]} ${y}`; }
+
+// ─── PDF Text Extraction ──────────────────────────────────────────────────────
+async function extractTextFromPDF(arrayBuffer) {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // Sort items by vertical position then horizontal to preserve row order
+    const items = content.items.slice().sort((a, b) => {
+      const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+      return yDiff !== 0 ? yDiff : a.transform[4] - b.transform[4];
+    });
+    // Group into rows (items within 3px vertical distance = same row)
+    const rows = [];
+    let currentRow = [];
+    let lastY = null;
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      if (lastY === null || Math.abs(y - lastY) < 4) {
+        currentRow.push(item.str);
+      } else {
+        if (currentRow.length) rows.push(currentRow.join("  "));
+        currentRow = [item.str];
+      }
+      lastY = y;
+    }
+    if (currentRow.length) rows.push(currentRow.join("  "));
+    fullText += rows.join("\n") + "\n\n";
+  }
+  return fullText.trim();
+}
 
 // ─── Claude API ───────────────────────────────────────────────────────────────
 // The API key is injected at build time from .env (VITE_ANTHROPIC_API_KEY)
@@ -152,6 +190,8 @@ export default function App() {
   const [form, setForm] = useState({ amount: "", description: "", category: "food", date: new Date().toISOString().split("T")[0] });
   const [bankText, setBankText] = useState("");
   const [bankParsing, setBankParsing] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfInfo, setPdfInfo] = useState(null); // { name, pages }
   const [bankResults, setBankResults] = useState([]);
   const [bankError, setBankError] = useState("");
   const [bankImported, setBankImported] = useState(false);
@@ -228,8 +268,28 @@ export default function App() {
   async function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const text = await file.text();
-    setBankText(text); setBankImported(false); setBankResults([]);
+    setBankText(""); setBankImported(false); setBankResults([]); setBankError(""); setPdfInfo(null);
+
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+      setPdfLoading(true);
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const text = await extractTextFromPDF(arrayBuffer);
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        setPdfInfo({ name: file.name, pages: pdf.numPages });
+        setBankText(text);
+      } catch (err) {
+        setBankError("Could not read PDF: " + err.message);
+      }
+      setPdfLoading(false);
+    } else {
+      // CSV / TXT
+      const text = await file.text();
+      setBankText(text);
+      setPdfInfo({ name: file.name, pages: null });
+    }
+    // reset input so same file can be re-uploaded
+    e.target.value = "";
   }
 
   // ── Styles ─────────────────────────────────────────────────────────────────
@@ -488,42 +548,111 @@ export default function App() {
       {view === "bank" && (
         <div style={S.sec}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Bank Import</div>
-          <div style={{ fontSize: 12, color: "#666", marginBottom: 20 }}>
-            Upload or paste your credit card statement. AI will auto-categorize every transaction.
+          <div style={{ fontSize: 12, color: "#666", marginBottom: 16 }}>
+            Upload your credit card statement — <span style={{ color: "#a99fff", fontWeight: 600 }}>PDF</span>, CSV, or TXT. AI will extract and categorize every transaction automatically.
+          </div>
+
+          {/* Format badges */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            {[["📄 PDF", "#7c6fff"], ["📊 CSV", "#4ECDC4"], ["📝 TXT", "#96CEB4"]].map(([label, color]) => (
+              <div key={label} style={{ padding: "4px 12px", borderRadius: 20, background: `${color}18`, border: `1px solid ${color}44`, fontSize: 11, color, fontWeight: 600 }}>{label}</div>
+            ))}
           </div>
 
           <div style={S.card}>
-            <input ref={fileRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={handleFileUpload} />
-            <button style={{ ...S.btn, background: "#1a1a3a", border: "1px dashed #3a3a6a", color: "#888", marginBottom: 12 }}
-              onClick={() => fileRef.current.click()}>
-              📁 Upload CSV / TXT Statement
+            <input ref={fileRef} type="file" accept=".pdf,.csv,.txt" style={{ display: "none" }} onChange={handleFileUpload} />
+
+            {/* Upload button */}
+            <button
+              style={{ ...S.btn, background: "#1a1a3a", border: "2px dashed #5a4fe8", color: "#a99fff", marginBottom: 12, opacity: pdfLoading ? 0.6 : 1, fontSize: 14 }}
+              onClick={() => { fileRef.current.click(); }}
+              disabled={pdfLoading}
+            >
+              {pdfLoading ? "⏳ Reading PDF..." : "📄 Upload Statement (PDF / CSV / TXT)"}
             </button>
-            <div style={{ fontSize: 11, color: "#444", textAlign: "center", marginBottom: 10 }}>— or paste below —</div>
-            <textarea style={S.textarea}
-              placeholder={"Paste statement text here...\ne.g.\n2024-03-05  GRAB FOOD         $24.50\n2024-03-07  COMFORT DEL TAXI  $12.00\n2024-03-10  NTUC FAIRPRICE    $85.30"}
-              value={bankText}
-              onChange={e => { setBankText(e.target.value); setBankImported(false); setBankResults([]); setBankError(""); }} />
-            {bankError && <div style={{ color: "#ff6b6b", fontSize: 12, marginTop: 8, padding: "8px 10px", background: "#ff000011", borderRadius: 8 }}>⚠️ {bankError}</div>}
-            <button style={{ ...S.btn, marginTop: 12, opacity: bankParsing || !bankText.trim() ? 0.6 : 1 }}
-              onClick={handleBankParse} disabled={bankParsing || !bankText.trim()}>
-              {bankParsing ? "🤖 Analyzing..." : "🤖 Categorize with AI"}
+
+            {/* PDF spinner */}
+            {pdfLoading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#1a1a3a", borderRadius: 10, marginBottom: 12 }}>
+                <div style={{ width: 18, height: 18, border: "2px solid #7c6fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 13, color: "#a99fff", fontWeight: 600 }}>Extracting text from PDF</div>
+                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Reading all pages...</div>
+                </div>
+              </div>
+            )}
+
+            {/* File loaded badge */}
+            {pdfInfo && !pdfLoading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#0d2a1a", border: "1px solid #1a6a3a", borderRadius: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 22 }}>{pdfInfo.name.endsWith(".pdf") ? "📄" : "📊"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#4ade80", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pdfInfo.name}</div>
+                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+                    {pdfInfo.pages ? `${pdfInfo.pages} page${pdfInfo.pages > 1 ? "s" : ""} · ` : ""}
+                    {bankText.length.toLocaleString()} characters extracted ✓
+                  </div>
+                </div>
+                <button style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 18, padding: "0 4px", flexShrink: 0 }}
+                  onClick={() => { setBankText(""); setPdfInfo(null); setBankResults([]); setBankError(""); }}>✕</button>
+              </div>
+            )}
+
+            {/* Manual paste — only show when no file loaded */}
+            {!pdfInfo && !pdfLoading && (
+              <>
+                <div style={{ fontSize: 11, color: "#444", textAlign: "center", marginBottom: 10 }}>— or paste statement text below —</div>
+                <textarea style={S.textarea}
+                  placeholder={"Paste statement text here...\ne.g.\n2024-03-05  GRAB FOOD         $24.50\n2024-03-07  COMFORT DEL TAXI  $12.00\n2024-03-10  NTUC FAIRPRICE    $85.30"}
+                  value={bankText}
+                  onChange={e => { setBankText(e.target.value); setBankImported(false); setBankResults([]); setBankError(""); }} />
+              </>
+            )}
+
+            {bankError && (
+              <div style={{ color: "#ff6b6b", fontSize: 12, marginTop: 8, padding: "10px 12px", background: "#ff000014", borderRadius: 8, border: "1px solid #ff000033" }}>
+                ⚠️ {bankError}
+              </div>
+            )}
+
+            <button
+              style={{ ...S.btn, marginTop: 12, opacity: (bankParsing || !bankText.trim() || pdfLoading) ? 0.45 : 1 }}
+              onClick={handleBankParse}
+              disabled={bankParsing || !bankText.trim() || pdfLoading}
+            >
+              {bankParsing
+                ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <span style={{ width: 14, height: 14, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+                    Analyzing with AI...
+                  </span>
+                : "🤖 Categorize with AI"}
             </button>
           </div>
 
+          {/* Results preview */}
           {bankResults.length > 0 && !bankImported && (
             <div style={S.card}>
-              <div style={{ fontSize: 12, color: "#888", marginBottom: 4, fontWeight: 600 }}>FOUND {bankResults.length} TRANSACTIONS</div>
-              <div style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>Review then import</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#888", fontWeight: 600 }}>AI FOUND {bankResults.length} TRANSACTIONS</div>
+                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+                    Total: <span style={{ color: "#ff8a8a", fontWeight: 600 }}>
+                      ${bankResults.reduce((s, r) => s + parseFloat(r.amount || 0), 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: "#555" }}>Review & import ↓</div>
+              </div>
               {bankResults.map((r, i) => {
                 const cat = getCatInfo(r.category);
                 return (
                   <div key={i} style={S.expRow}>
                     <div style={S.catDot(cat.color)}>{cat.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}>{r.description}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.description}</div>
                       <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{r.date} · <span style={S.tag(cat.color)}>{cat.label}</span></div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#ff8a8a" }}>-${parseFloat(r.amount).toFixed(2)}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#ff8a8a", flexShrink: 0 }}>-${parseFloat(r.amount).toFixed(2)}</div>
                   </div>
                 );
               })}
@@ -535,12 +664,15 @@ export default function App() {
 
           {bankImported && (
             <div style={{ ...S.card, background: "#0a2a1a", borderColor: "#1a5a3a", textAlign: "center", padding: 24 }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
-              <div style={{ color: "#4ade80", fontWeight: 700 }}>Imported Successfully!</div>
-              <button style={{ ...S.btn, marginTop: 14, background: "#1a3a2a", border: "1px solid #2a6a4a", color: "#4ade80" }}
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+              <div style={{ color: "#4ade80", fontWeight: 700, fontSize: 16 }}>Imported Successfully!</div>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>All transactions added to your expenses</div>
+              <button style={{ ...S.btn, marginTop: 16, background: "#1a3a2a", border: "1px solid #2a6a4a", color: "#4ade80" }}
                 onClick={() => setView("analytics")}>View Analytics →</button>
             </div>
           )}
+
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
     </div>
