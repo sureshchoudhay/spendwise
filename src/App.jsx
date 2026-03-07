@@ -54,47 +54,16 @@ async function extractTextFromPDF(arrayBuffer) {
   return { text: fullText.trim(), pages: pdf.numPages };
 }
 
-// ─── Claude API ───────────────────────────────────────────────────────────────
-async function categorizeStatement(text, apiKey) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+// ─── Categorize via Vercel proxy (avoids CORS) ───────────────────────────────
+async function categorizeStatement(text) {
+  const res = await fetch("/api/categorize", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-allow-browser": "true",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
-      messages: [{
-        role: "user",
-        content: `You are a financial categorization assistant. Extract spending transactions from this bank statement and categorize each one.
-
-Available categories: food, transport, shopping, entertainment, health, utilities, travel, groceries, education, others
-
-Bank statement text:
-${text.slice(0, 4000)}
-
-Return ONLY a valid JSON array, no markdown, no explanation:
-[{"description":"merchant name","amount":25.50,"category":"food","date":"2024-01-15"}]
-
-Rules:
-- amount: positive number only
-- date: YYYY-MM-DD format, use current year if missing
-- Skip headers, totals, opening/closing balances, credits/refunds
-- Only include debit/spending transactions`,
-      }],
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
-  }
-  const data  = await res.json();
-  const raw   = data.content?.find(b => b.type === "text")?.text ?? "[]";
-  const clean = raw.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+  return data.transactions;
 }
 
 // ─── SVG Components ───────────────────────────────────────────────────────────
@@ -152,95 +121,8 @@ function BudgetGauge({ pct, color }) {
   );
 }
 
-// ─── API Key Setup Screen ─────────────────────────────────────────────────────
-function ApiKeySetup({ onSave }) {
-  const [val, setVal]   = useState("");
-  const [show, setShow] = useState(false);
-  const [err, setErr]   = useState("");
-
-  function save() {
-    const k = val.trim();
-    if (!k.startsWith("sk-ant-")) { setErr("Key should start with sk-ant-"); return; }
-    onSave(k);
-  }
-
-  return (
-    <div style={{ minHeight: "100vh", background: "#0a0a16", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ maxWidth: 400, width: "100%" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🔑</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#e8e8f0" }}>Anthropic API Key</div>
-          <div style={{ fontSize: 13, color: "#555", marginTop: 8, lineHeight: 1.6 }}>
-            Required for AI bank statement categorization.<br />
-            Your key is stored only in your browser.
-          </div>
-        </div>
-
-        <div style={{ background: "#12122a", borderRadius: 16, padding: 20, border: "1px solid #2a2a4a" }}>
-          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Paste your API key</div>
-          <div style={{ position: "relative", marginBottom: 12 }}>
-            <input
-              type={show ? "text" : "password"}
-              placeholder="sk-ant-api03-..."
-              value={val}
-              onChange={e => { setVal(e.target.value); setErr(""); }}
-              style={{ width: "100%", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "12px 44px 12px 14px", color: "#e8e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }}
-            />
-            <button onClick={() => setShow(s => !s)}
-              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 16 }}>
-              {show ? "🙈" : "👁️"}
-            </button>
-          </div>
-
-          {err && <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 12 }}>⚠️ {err}</div>}
-
-          <button onClick={save}
-            style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg,#7c6fff,#5a4fe8)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: val.trim() ? 1 : 0.5 }}
-            disabled={!val.trim()}>
-            Save & Continue
-          </button>
-
-          <div style={{ marginTop: 20, padding: 14, background: "#0a0a1a", borderRadius: 10, border: "1px solid #1e1e3a" }}>
-            <div style={{ fontSize: 11, color: "#888", fontWeight: 600, marginBottom: 8 }}>HOW TO GET YOUR KEY</div>
-            <div style={{ fontSize: 12, color: "#666", lineHeight: 1.8 }}>
-              1. Go to <span style={{ color: "#a99fff" }}>console.anthropic.com</span><br />
-              2. Sign up / Log in<br />
-              3. Click <strong style={{ color: "#ccc" }}>API Keys</strong> → <strong style={{ color: "#ccc" }}>Create Key</strong><br />
-              4. Copy and paste it above
-            </div>
-          </div>
-
-          <div style={{ marginTop: 12, fontSize: 11, color: "#444", textAlign: "center", lineHeight: 1.6 }}>
-            🔒 Key is saved in your browser's localStorage only.<br />Never sent anywhere except Anthropic's API.
-          </div>
-        </div>
-
-        <div style={{ marginTop: 16, padding: 14, background: "#0d1a0d", borderRadius: 12, border: "1px solid #1a3a1a" }}>
-          <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, marginBottom: 4 }}>💡 VERCEL DEPLOYMENT TIP</div>
-          <div style={{ fontSize: 11, color: "#555", lineHeight: 1.7 }}>
-            If deployed on Vercel, add <span style={{ color: "#a99fff", fontFamily: "monospace" }}>VITE_ANTHROPIC_API_KEY</span> in<br />
-            <strong style={{ color: "#888" }}>Vercel → Settings → Environment Variables</strong><br />
-            then Redeploy. You won't see this screen again.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  // ── API key resolution: env var → localStorage → show setup screen ──────
-  const envKey      = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  const storedKey   = (() => { try { return localStorage.getItem("spendwise_apikey") || ""; } catch { return ""; } })();
-  const resolvedKey = (envKey && envKey !== "your_anthropic_api_key_here") ? envKey : storedKey;
-  const [apiKey, setApiKey] = useState(resolvedKey);
-
-  function handleSaveKey(k) {
-    localStorage.setItem("spendwise_apikey", k);
-    setApiKey(k);
-  }
-
   // ── App state ──────────────────────────────────────────────────────────
   const [activeUser, setActiveUser] = useState("Anirudh");
   const [view,       setView]       = useState("dashboard");
@@ -275,9 +157,6 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem("spendwise_expenses", JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem("spendwise_budgets",  JSON.stringify(budgets));  }, [budgets]);
-
-  // ── Show API key setup if no key ────────────────────────────────────────
-  if (!apiKey) return <ApiKeySetup onSave={handleSaveKey} />;
 
   // ── Derived ────────────────────────────────────────────────────────────
   const userExp      = expenses.filter(e => e.user === activeUser);
@@ -339,7 +218,7 @@ export default function App() {
     if (!bankText.trim()) return;
     setBankParsing(true); setBankResults([]); setBankError("");
     try {
-      const results = await categorizeStatement(bankText, apiKey);
+      const results = await categorizeStatement(bankText);
       if (!Array.isArray(results) || results.length === 0) throw new Error("No transactions found. Try a different statement format.");
       setBankResults(results);
     } catch (err) {
@@ -547,14 +426,6 @@ export default function App() {
             <input style={S.input} type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} />
           </div>
           <button style={{ ...S.btn, opacity: (!form.amount||!form.description) ? 0.5:1 }} onClick={addExpense}>Add Expense</button>
-
-          {/* Change API key link */}
-          <div style={{ textAlign: "center", marginTop: 20 }}>
-            <button style={{ background:"none", border:"none", color:"#444", fontSize:11, cursor:"pointer" }}
-              onClick={() => { localStorage.removeItem("spendwise_apikey"); setApiKey(""); }}>
-              🔑 Change API Key
-            </button>
-          </div>
         </div>
       )}
 
