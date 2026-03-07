@@ -294,7 +294,7 @@ export default function App() {
           <div style={{ display: "flex", gap: 6 }}>
             {USERS.map(u => (
               <button key={u} style={S.userBtn(activeUser === u)} onClick={() => setActiveUser(u)}>
-                {u === "Anirudh" ? "👤" : "👥"} {u}
+                {u === "Anirudh" ? "👤" : "👤"} {u}
               </button>
             ))}
           </div>
