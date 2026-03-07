@@ -19,7 +19,7 @@ const CATEGORIES = [
   { id: "others",        label: "Others",            icon: "📦", color: "#AEB6BF" },
 ];
 
-const USERS  = ["Anirudh", "Bella"];
+const USERS  = ["Suresh", "Bella"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ function BudgetGauge({ pct, color }) {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   // ── App state ──────────────────────────────────────────────────────────
-  const [activeUser, setActiveUser] = useState("Anirudh");
+  const [activeUser, setActiveUser] = useState("Suresh");
   const [view,       setView]       = useState("dashboard");
 
   const [expenses, setExpenses] = useState(() => {
@@ -294,7 +294,7 @@ export default function App() {
           <div style={{ display: "flex", gap: 6 }}>
             {USERS.map(u => (
               <button key={u} style={S.userBtn(activeUser === u)} onClick={() => setActiveUser(u)}>
-                {u === "Anirudh" ? "👤" : "👤"} {u}
+                {u === "Suresh" ? "👤" : "👤"} {u}
               </button>
             ))}
           </div>
