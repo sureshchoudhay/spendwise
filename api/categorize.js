@@ -1,5 +1,5 @@
-// api/categorize.js — Uses Google Gemini API (free tier, no credit card needed)
-// Get your free key at: https://aistudio.google.com/app/apikey
+// api/categorize.js — Google Gemini API (free tier)
+// Uses gemini-1.5-flash-8b which has free quota on most accounts
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -10,10 +10,9 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST")    return res.status(405).json({ error: "Method not allowed" });
 
   const apiKey = process.env.GEMINI_API_KEY || "";
-
   if (!apiKey) {
     return res.status(500).json({
-      error: "GEMINI_API_KEY not set. Get a free key at aistudio.google.com → Get API Key. Then add it in Vercel → Settings → Environment Variables → GEMINI_API_KEY."
+      error: "GEMINI_API_KEY not set. Get a free key at aistudio.google.com then add it in Vercel → Settings → Environment Variables."
     });
   }
 
@@ -35,34 +34,56 @@ module.exports = async function handler(req, res) {
     "- Skip headers, totals, opening/closing balances, credits/refunds\n" +
     "- Only include debit/spending transactions";
 
-  try {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+  // Try models in order — first one with free quota wins
+  const models = [
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+  ];
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
-      })
-    });
+  var lastError = "";
 
-    if (!response.ok) {
-      const e = await response.json().catch(() => ({}));
-      const msg = (e && e.error && e.error.message) || ("Gemini API error " + response.status);
-      return res.status(response.status).json({ error: msg });
+  for (var i = 0; i < models.length; i++) {
+    var model = models[i];
+    try {
+      var url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+
+      var response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+        })
+      });
+
+      var data = await response.json();
+
+      // If quota exceeded, try next model
+      if (!response.ok) {
+        var errMsg = (data && data.error && data.error.message) || "";
+        if (errMsg.indexOf("quota") !== -1 || errMsg.indexOf("Quota") !== -1 || response.status === 429) {
+          lastError = "Quota exceeded on " + model;
+          continue; // try next model
+        }
+        return res.status(response.status).json({ error: errMsg || ("API error " + response.status) });
+      }
+
+      var raw   = ((((data.candidates || [])[0] || {}).content || {}).parts || [])[0];
+      var txt   = (raw && raw.text) || "[]";
+      var clean = txt.replace(/```json|```/g, "").trim();
+      var parsed = JSON.parse(clean);
+
+      return res.status(200).json({ transactions: parsed, model_used: model });
+
+    } catch (err) {
+      lastError = err.message || "Unknown error";
+      continue;
     }
-
-    const data  = await response.json();
-    const raw   = ((((data.candidates || [])[0] || {}).content || {}).parts || [])[0];
-    const txt   = (raw && raw.text) || "[]";
-    const clean = txt.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
-
-    return res.status(200).json({ transactions: parsed });
-
-  } catch (err) {
-    console.error("categorize error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
   }
+
+  // All models exhausted
+  return res.status(429).json({
+    error: "All Gemini free tier models are over quota for today. This resets at midnight Pacific time. Try again tomorrow, or enable billing at aistudio.google.com (very cheap — ~$0.001 per statement)."
+  });
 };
