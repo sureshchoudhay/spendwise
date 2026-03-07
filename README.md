@@ -1,26 +1,20 @@
 # 💸 Spendwise — Personal Finance PWA
 
-A personal expense tracker with budget monitoring, analytics, and AI-powered bank statement categorization. Built as a **Progressive Web App (PWA)** — install it on your iPhone like a native app, completely free.
+Track daily expenses, set budgets, and import bank statements with AI categorization.
+Installs on your iPhone home screen like a native app. Completely free to host.
 
 ---
 
-## 🚀 Deploy in 5 Steps (Free, ~10 minutes)
+## 🚀 Deploy to Vercel (Free) — Step by Step
 
-### Prerequisites (one-time setup)
-- [Node.js](https://nodejs.org) v18+ installed on your computer
-- A free [GitHub](https://github.com) account
-- A free [Vercel](https://vercel.com) account (sign up with GitHub)
-- An [Anthropic API key](https://console.anthropic.com) (for bank statement AI feature)
+### Step 1 — Push to GitHub
 
----
-
-### Step 1 — Get the code on GitHub
-
-1. Go to [github.com](https://github.com) → click **"New repository"**
-2. Name it `spendwise`, set to **Private**, click **Create**
-3. On your computer, open Terminal in this project folder and run:
+1. Go to [github.com](https://github.com) → **New repository**
+2. Name: `spendwise` · Visibility: **Private** · Click **Create repository**
+3. Open Terminal in this project folder:
 
 ```bash
+npm install
 git init
 git add .
 git commit -m "Initial commit"
@@ -31,57 +25,53 @@ git push -u origin main
 
 ---
 
-### Step 2 — Deploy to Vercel
+### Step 2 — Deploy on Vercel
 
-1. Go to [vercel.com](https://vercel.com) → **"Add New Project"**
-2. Click **"Import"** next to your `spendwise` repo
-3. Vercel auto-detects Vite — just click **"Deploy"**
-4. Wait ~60 seconds for your first deploy ✅
-
----
-
-### Step 3 — Add your Anthropic API Key
-
-This is needed for the AI bank statement categorization feature.
-
-1. In Vercel dashboard → your project → **Settings** → **Environment Variables**
-2. Add:
-   - **Name:** `VITE_ANTHROPIC_API_KEY`
-   - **Value:** `sk-ant-...` (your key from [console.anthropic.com](https://console.anthropic.com))
-   - **Environment:** Production ✓, Preview ✓
-3. Click **Save**
-4. Go to **Deployments** → click **"Redeploy"** (top right) to apply the key
-
-> ⚠️ **Security note:** The API key is embedded in the browser bundle. Since this is a personal private app, that's fine. Never share your Vercel URL publicly.
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. Click **Import** next to your `spendwise` repo
+3. Click **Deploy** (Vercel auto-detects Vite — no settings needed)
+4. Wait ~60 seconds ✅
 
 ---
 
-### Step 4 — Run locally (optional, for development)
+### Step 3 — Add your Anthropic API Key on Vercel
 
-```bash
-# Install dependencies
-npm install
+> ⚠️ This is the most important step — skip it and bank AI won't work.
 
-# Create your local .env file
-cp .env.example .env
-# Edit .env and paste your Anthropic API key
+1. In Vercel dashboard → your project → **Settings** tab
+2. Click **Environment Variables** in the left sidebar
+3. Fill in:
+   - **Key:** `VITE_ANTHROPIC_API_KEY`
+   - **Value:** your key from [console.anthropic.com](https://console.anthropic.com/settings/keys)
+4. Make sure **Production**, **Preview**, **Development** are all checked
+5. Click **Save**
+6. Go to **Deployments** tab → click the **⋯ menu** on the latest deployment → **Redeploy**
+7. Wait ~30 seconds for redeploy ✅
 
-# Start dev server
-npm run dev
-# Open http://localhost:5173
-```
+**Get an API key:**
+- Go to [console.anthropic.com](https://console.anthropic.com)
+- Sign up (free) → **API Keys** → **Create Key**
+- Copy the `sk-ant-...` key
 
 ---
 
-### Step 5 — Install on your iPhone 📱
+### Step 4 — Install on iPhone 📱
 
-1. Open **Safari** on your iPhone (must be Safari, not Chrome)
-2. Go to your Vercel URL: `https://spendwise-xxx.vercel.app`
-3. Tap the **Share button** (box with arrow at bottom of screen)
-4. Scroll down and tap **"Add to Home Screen"**
-5. Name it **"Spendwise"** → tap **Add**
+1. Open **Safari** on your iPhone (must be Safari, not Chrome/Firefox)
+2. Go to your Vercel URL e.g. `https://spendwise-abc123.vercel.app`
+3. Tap the **Share** button (square with arrow, bottom of Safari)
+4. Scroll and tap **"Add to Home Screen"**
+5. Tap **Add** — the app icon appears on your home screen ✅
 
-Done! The app now lives on your home screen with its own icon, opens fullscreen (no browser bar), and works offline for viewing your existing data.
+The app opens fullscreen with no browser bar, just like a native app.
+
+---
+
+## 📱 No API Key on Vercel? (Fallback)
+
+If you skip Step 3, the app shows a built-in setup screen where you can
+paste your API key directly in the browser. The key is saved in localStorage
+on that device only. This works fine for personal use on your iPhone.
 
 ---
 
@@ -91,14 +81,17 @@ Done! The app now lives on your home screen with its own icon, opens fullscreen 
 spendwise/
 ├── src/
 │   ├── main.jsx          # React entry point
-│   └── App.jsx           # Full app (all components in one file)
+│   └── App.jsx           # Complete app (all-in-one)
 ├── public/
-│   └── icons/            # App icons (192px, 512px, apple-touch)
+│   └── icons/            # App icons for PWA + iOS
+│       ├── icon-192.png
+│       ├── icon-512.png
+│       └── apple-touch-icon.png
 ├── index.html            # HTML shell with iOS PWA meta tags
-├── vite.config.js        # Vite + PWA plugin config
-├── vercel.json           # Vercel deployment config
-├── .env.example          # API key template
-└── package.json
+├── vite.config.js        # Vite + PWA plugin configuration
+├── vercel.json           # Vercel deployment settings
+├── package.json          # Dependencies
+└── .gitignore            # Excludes node_modules, .env, dist
 ```
 
 ---
@@ -106,51 +99,44 @@ spendwise/
 ## ✨ Features
 
 | Feature | Details |
-|--------|---------|
-| 📝 Manual expenses | Add by category, amount, description, date |
-| 👥 Multi-user | Anirudh + Guest — fully isolated data |
-| 💰 Budget tracking | Monthly budget with gauge, spent/remaining, daily pace |
-| 📊 Analytics | Donut chart + bar breakdown by category, month picker |
-| 🏦 Bank import | Paste/upload statement → AI categorizes transactions |
-| 📱 PWA | Installs on iPhone home screen, works offline |
-| 💾 Local storage | All data stored on-device, no backend needed |
+|---|---|
+| ➕ Manual expenses | Category picker, amount, description, date |
+| 💰 Budget tracking | Monthly gauge, spent/remaining, daily pace, on-track indicator |
+| 📊 Analytics | Donut chart + category bars, month picker, all transactions |
+| 👥 Multi-user | Anirudh + Guest with fully isolated data |
+| 🏦 Bank import | Upload **PDF** / CSV / TXT → AI auto-categorizes |
+| 📱 PWA | Installs on iPhone home screen, offline capable |
+| 💾 Local storage | All data stays on your device — no backend |
 
 ---
 
 ## 🔧 Customization
 
-**Change your name:** Edit `src/App.jsx` line:
+**Change user names** — edit `src/App.jsx`:
 ```js
 const USERS = ["Anirudh", "Guest"];
-// Change to your name(s)
-const USERS = ["YourName", "Partner"];
+// change to e.g.:
+const USERS = ["Anirudh", "Priya"];
 ```
 
-**Change default budget:** Edit the fallback in `src/App.jsx`:
+**Change currency** — find/replace `$` with `S$`, `HK$`, `₹`, etc.
+
+**Change default budget** — find this line in `src/App.jsx`:
 ```js
-const monthBudget = budgets[activeUser] || 3000; // change 3000
+const monthBudget = budgets[activeUser] ?? 3000;
 ```
 
-**Change currency symbol:** Search for `$` in `App.jsx` and replace with your currency symbol (e.g. `S$`, `HK$`, `₹`).
-
-After any changes, just `git commit` + `git push` — Vercel auto-deploys in ~30 seconds.
+After any edit: `git add . && git commit -m "update" && git push`
+Vercel auto-deploys in ~30 seconds.
 
 ---
 
-## 🆓 Running Costs
+## 💰 Cost
 
 | Service | Cost |
-|--------|------|
-| Vercel hosting | **Free** (Hobby plan, personal use) |
-| GitHub repo | **Free** (private repo) |
-| Anthropic API | ~$0.001–0.01 per bank statement parse (pay per use) |
+|---|---|
+| Vercel hosting | **Free** forever for personal projects |
+| GitHub private repo | **Free** |
+| Anthropic API (bank AI) | ~$0.001 per statement parse |
 
-Total monthly cost for personal use: **essentially $0** (only tiny API costs when you parse bank statements).
-
----
-
-## 🔄 Future Upgrades (if needed)
-
-- **Sync across devices:** Add Supabase (free tier) as a backend
-- **Real notifications:** Convert to React Native with Expo
-- **CSV export:** Add a download button that generates a CSV of your expenses
+**Effectively $0/month.**

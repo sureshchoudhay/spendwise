@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-// Use the bundled worker so no separate file is needed
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.mjs",
   import.meta.url
 ).toString();
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
   { id: "food",          label: "Food & Dining",    icon: "🍜", color: "#FF6B6B" },
   { id: "transport",     label: "Transport",         icon: "🚇", color: "#4ECDC4" },
@@ -19,123 +19,106 @@ const CATEGORIES = [
   { id: "others",        label: "Others",            icon: "📦", color: "#AEB6BF" },
 ];
 
-const USERS = ["Anirudh", "Guest"];
+const USERS  = ["Anirudh", "Guest"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function genId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-function getMonthKey(date) { const d = new Date(date); return `${d.getFullYear()}-${d.getMonth()}`; }
-function getCatInfo(id) { return CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1]; }
-function MonthLabel(key) { const [y, m] = key.split("-").map(Number); return `${MONTHS[m]} ${y}`; }
+const genId      = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const getMonthKey = d  => { const x = new Date(d); return `${x.getFullYear()}-${x.getMonth()}`; };
+const getCatInfo  = id => CATEGORIES.find(c => c.id === id) ?? CATEGORIES.at(-1);
+const MonthLabel  = k  => { const [y,m] = k.split("-").map(Number); return `${MONTHS[m]} ${y}`; };
+const sumAmt      = arr => arr.reduce((s,e) => s + e.amount, 0);
 
-// ─── PDF Text Extraction ──────────────────────────────────────────────────────
+// ─── PDF Extraction ───────────────────────────────────────────────────────────
 async function extractTextFromPDF(arrayBuffer) {
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf   = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = "";
   for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
+    const page    = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const items = content.items.slice().sort((a, b) => {
-      const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]);
-      return yDiff !== 0 ? yDiff : a.transform[4] - b.transform[4];
+    const items   = content.items.slice().sort((a, b) => {
+      const dy = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+      return dy !== 0 ? dy : a.transform[4] - b.transform[4];
     });
     const rows = [];
-    let currentRow = [];
-    let lastY = null;
+    let row = [], lastY = null;
     for (const item of items) {
       const y = Math.round(item.transform[5]);
-      if (lastY === null || Math.abs(y - lastY) < 4) {
-        currentRow.push(item.str);
-      } else {
-        if (currentRow.length) rows.push(currentRow.join("  "));
-        currentRow = [item.str];
-      }
+      if (lastY === null || Math.abs(y - lastY) < 4) { row.push(item.str); }
+      else { if (row.length) rows.push(row.join("  ")); row = [item.str]; }
       lastY = y;
     }
-    if (currentRow.length) rows.push(currentRow.join("  "));
+    if (row.length) rows.push(row.join("  "));
     fullText += rows.join("\n") + "\n\n";
   }
-  // Return both text and page count so we don't need a second buffer read
   return { text: fullText.trim(), pages: pdf.numPages };
 }
 
 // ─── Claude API ───────────────────────────────────────────────────────────────
-// The API key is injected at build time from .env (VITE_ANTHROPIC_API_KEY)
-// At runtime the app talks directly to api.anthropic.com
-async function categorizeBankStatement(text) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("VITE_ANTHROPIC_API_KEY is not set. Add it to your .env file or Vercel environment variables.");
-  }
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+async function categorizeStatement(text, apiKey) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-allow-browser": "true"
+      "anthropic-dangerous-allow-browser": "true",
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
       messages: [{
         role: "user",
-        content: `You are a financial categorization assistant. Given bank statement lines, extract transactions and categorize them.
+        content: `You are a financial categorization assistant. Extract spending transactions from this bank statement and categorize each one.
 
-Categories available: food, transport, shopping, entertainment, health, utilities, travel, groceries, education, others
+Available categories: food, transport, shopping, entertainment, health, utilities, travel, groceries, education, others
 
 Bank statement text:
 ${text.slice(0, 4000)}
 
-Return ONLY a JSON array (no markdown, no explanation) like:
-[{"description":"...", "amount": 25.50, "category":"food", "date":"2024-01-15"}]
+Return ONLY a valid JSON array, no markdown, no explanation:
+[{"description":"merchant name","amount":25.50,"category":"food","date":"2024-01-15"}]
 
 Rules:
-- amount must be a positive number
-- date format: YYYY-MM-DD, if no year assume current year
-- Pick the best matching category
-- Skip non-transaction lines (headers, totals, opening/closing balance)
-- Only include debit/spending transactions`
-      }]
-    })
+- amount: positive number only
+- date: YYYY-MM-DD format, use current year if missing
+- Skip headers, totals, opening/closing balances, credits/refunds
+- Only include debit/spending transactions`,
+      }],
+    }),
   });
-  if (!response.ok) throw new Error(`API error ${response.status}`);
-  const data = await response.json();
-  const raw = data.content?.find(b => b.type === "text")?.text || "[]";
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API error ${res.status}`);
+  }
+  const data  = await res.json();
+  const raw   = data.content?.find(b => b.type === "text")?.text ?? "[]";
   const clean = raw.replace(/```json|```/g, "").trim();
   return JSON.parse(clean);
 }
 
-// ─── DonutChart ───────────────────────────────────────────────────────────────
+// ─── SVG Components ───────────────────────────────────────────────────────────
 function DonutChart({ data, size = 140 }) {
   const total = data.reduce((s, d) => s + d.value, 0);
-  if (total === 0) return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: "#1a1a2e", border: "2px solid #2a2a4a", margin: "0 auto" }} />
-  );
+  if (!total) return <div style={{ width: size, height: size, borderRadius: "50%", background: "#1a1a2e", border: "2px solid #2a2a4a", margin: "0 auto" }} />;
   let offset = 0;
-  const r = 50, cx = 60, cy = 60, stroke = 18, circ = 2 * Math.PI * r;
+  const r = 50, cx = 60, cy = 60, sw = 18, circ = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120">
       {data.map((d, i) => {
         const dash = (d.value / total) * circ;
-        const seg = (
-          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={d.color} strokeWidth={stroke}
-            strokeDasharray={`${dash} ${circ - dash}`}
-            strokeDashoffset={-offset * circ / 100}
-            style={{ transition: "stroke-dasharray 0.5s ease" }}
-          />
-        );
+        const el = <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={d.color} strokeWidth={sw}
+          strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={-offset * circ / 100}
+          style={{ transition: "stroke-dasharray 0.5s ease" }} />;
         offset += (d.value / total) * 100;
-        return seg;
+        return el;
       })}
-      <circle cx={cx} cy={cy} r={r - stroke / 2} fill="#0f0f1e" />
+      <circle cx={cx} cy={cy} r={r - sw / 2} fill="#0f0f1e" />
     </svg>
   );
 }
 
-// ─── BarRow ───────────────────────────────────────────────────────────────────
 function BarRow({ label, value, max, color, icon }) {
-  const pct = max > 0 ? (value / max) * 100 : 0;
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, color: "#ccc" }}>
@@ -143,41 +126,124 @@ function BarRow({ label, value, max, color, icon }) {
         <span style={{ color, fontWeight: 600 }}>${value.toFixed(2)}</span>
       </div>
       <div style={{ background: "#1a1a2e", borderRadius: 6, height: 7, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 6, transition: "width 0.6s ease" }} />
+        <div style={{ width: `${max > 0 ? (value/max)*100 : 0}%`, background: color, height: "100%", borderRadius: 6, transition: "width 0.6s ease" }} />
       </div>
     </div>
   );
 }
 
-// ─── BudgetGauge ──────────────────────────────────────────────────────────────
 function BudgetGauge({ pct, color }) {
-  const r = 52, cx = 70, cy = 70, stroke = 12, circ = 2 * Math.PI * r;
+  const r = 52, cx = 70, cy = 70, sw = 12, circ = 2 * Math.PI * r;
   const dash = (Math.min(pct, 100) / 100) * circ;
   return (
     <svg width={140} height={90} viewBox="0 0 140 90">
       <defs>
-        <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+        <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.5" />
           <stop offset="100%" stopColor={color} />
         </linearGradient>
       </defs>
-      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-        fill="none" stroke="#1a1a2e" strokeWidth={stroke} strokeLinecap="round" />
-      <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-        fill="none" stroke="url(#gaugeGrad)" strokeWidth={stroke} strokeLinecap="round"
-        strokeDasharray={`${(dash / circ) * (Math.PI * r)} ${Math.PI * r}`}
-        style={{ transition: "stroke-dasharray 0.8s ease" }}
-      />
-      <text x={cx} y={cy - 8} textAnchor="middle" fill={color} fontSize="18" fontWeight="700">{pct.toFixed(0)}%</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fill="#888" fontSize="9">of budget used</text>
+      <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`} fill="none" stroke="#1a1a2e" strokeWidth={sw} strokeLinecap="round" />
+      <path d={`M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}`} fill="none" stroke="url(#gg)" strokeWidth={sw} strokeLinecap="round"
+        strokeDasharray={`${(dash/circ)*(Math.PI*r)} ${Math.PI*r}`} style={{ transition: "stroke-dasharray 0.8s ease" }} />
+      <text x={cx} y={cy-8}  textAnchor="middle" fill={color} fontSize="18" fontWeight="700">{pct.toFixed(0)}%</text>
+      <text x={cx} y={cy+8}  textAnchor="middle" fill="#888"  fontSize="9">of budget used</text>
     </svg>
+  );
+}
+
+// ─── API Key Setup Screen ─────────────────────────────────────────────────────
+function ApiKeySetup({ onSave }) {
+  const [val, setVal]   = useState("");
+  const [show, setShow] = useState(false);
+  const [err, setErr]   = useState("");
+
+  function save() {
+    const k = val.trim();
+    if (!k.startsWith("sk-ant-")) { setErr("Key should start with sk-ant-"); return; }
+    onSave(k);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a16", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 400, width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔑</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#e8e8f0" }}>Anthropic API Key</div>
+          <div style={{ fontSize: 13, color: "#555", marginTop: 8, lineHeight: 1.6 }}>
+            Required for AI bank statement categorization.<br />
+            Your key is stored only in your browser.
+          </div>
+        </div>
+
+        <div style={{ background: "#12122a", borderRadius: 16, padding: 20, border: "1px solid #2a2a4a" }}>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Paste your API key</div>
+          <div style={{ position: "relative", marginBottom: 12 }}>
+            <input
+              type={show ? "text" : "password"}
+              placeholder="sk-ant-api03-..."
+              value={val}
+              onChange={e => { setVal(e.target.value); setErr(""); }}
+              style={{ width: "100%", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "12px 44px 12px 14px", color: "#e8e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }}
+            />
+            <button onClick={() => setShow(s => !s)}
+              style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 16 }}>
+              {show ? "🙈" : "👁️"}
+            </button>
+          </div>
+
+          {err && <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 12 }}>⚠️ {err}</div>}
+
+          <button onClick={save}
+            style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: "linear-gradient(135deg,#7c6fff,#5a4fe8)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", opacity: val.trim() ? 1 : 0.5 }}
+            disabled={!val.trim()}>
+            Save & Continue
+          </button>
+
+          <div style={{ marginTop: 20, padding: 14, background: "#0a0a1a", borderRadius: 10, border: "1px solid #1e1e3a" }}>
+            <div style={{ fontSize: 11, color: "#888", fontWeight: 600, marginBottom: 8 }}>HOW TO GET YOUR KEY</div>
+            <div style={{ fontSize: 12, color: "#666", lineHeight: 1.8 }}>
+              1. Go to <span style={{ color: "#a99fff" }}>console.anthropic.com</span><br />
+              2. Sign up / Log in<br />
+              3. Click <strong style={{ color: "#ccc" }}>API Keys</strong> → <strong style={{ color: "#ccc" }}>Create Key</strong><br />
+              4. Copy and paste it above
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, fontSize: 11, color: "#444", textAlign: "center", lineHeight: 1.6 }}>
+            🔒 Key is saved in your browser's localStorage only.<br />Never sent anywhere except Anthropic's API.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, padding: 14, background: "#0d1a0d", borderRadius: 12, border: "1px solid #1a3a1a" }}>
+          <div style={{ fontSize: 11, color: "#4ade80", fontWeight: 600, marginBottom: 4 }}>💡 VERCEL DEPLOYMENT TIP</div>
+          <div style={{ fontSize: 11, color: "#555", lineHeight: 1.7 }}>
+            If deployed on Vercel, add <span style={{ color: "#a99fff", fontFamily: "monospace" }}>VITE_ANTHROPIC_API_KEY</span> in<br />
+            <strong style={{ color: "#888" }}>Vercel → Settings → Environment Variables</strong><br />
+            then Redeploy. You won't see this screen again.
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
+  // ── API key resolution: env var → localStorage → show setup screen ──────
+  const envKey      = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  const storedKey   = (() => { try { return localStorage.getItem("spendwise_apikey") || ""; } catch { return ""; } })();
+  const resolvedKey = (envKey && envKey !== "your_anthropic_api_key_here") ? envKey : storedKey;
+  const [apiKey, setApiKey] = useState(resolvedKey);
+
+  function handleSaveKey(k) {
+    localStorage.setItem("spendwise_apikey", k);
+    setApiKey(k);
+  }
+
+  // ── App state ──────────────────────────────────────────────────────────
   const [activeUser, setActiveUser] = useState("Anirudh");
-  const [view, setView] = useState("dashboard");
+  const [view,       setView]       = useState("dashboard");
 
   const [expenses, setExpenses] = useState(() => {
     try { return JSON.parse(localStorage.getItem("spendwise_expenses") || "[]"); } catch { return []; }
@@ -186,54 +252,56 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("spendwise_budgets") || "{}"); } catch { return {}; }
   });
 
-  const [form, setForm] = useState({ amount: "", description: "", category: "food", date: new Date().toISOString().split("T")[0] });
-  const [bankText, setBankText] = useState("");
+  const [form, setForm] = useState({
+    amount: "", description: "", category: "food",
+    date: new Date().toISOString().split("T")[0],
+  });
+
+  const [bankText,    setBankText]    = useState("");
   const [bankParsing, setBankParsing] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfInfo, setPdfInfo] = useState(null); // { name, pages }
+  const [pdfLoading,  setPdfLoading]  = useState(false);
+  const [pdfInfo,     setPdfInfo]     = useState(null);
   const [bankResults, setBankResults] = useState([]);
-  const [bankError, setBankError] = useState("");
-  const [bankImported, setBankImported] = useState(false);
+  const [bankError,   setBankError]   = useState("");
+  const [bankImported,setBankImported]= useState(false);
+
   const [editingBudget, setEditingBudget] = useState(false);
-  const [budgetInput, setBudgetInput] = useState("");
-  const fileRef = useRef();
+  const [budgetInput,   setBudgetInput]   = useState("");
 
   const now = new Date();
   const [analyticsPeriod, setAnalyticsPeriod] = useState(`${now.getFullYear()}-${now.getMonth()}`);
 
+  const fileRef = useRef();
+
   useEffect(() => { localStorage.setItem("spendwise_expenses", JSON.stringify(expenses)); }, [expenses]);
-  useEffect(() => { localStorage.setItem("spendwise_budgets", JSON.stringify(budgets)); }, [budgets]);
+  useEffect(() => { localStorage.setItem("spendwise_budgets",  JSON.stringify(budgets));  }, [budgets]);
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-  const userExpenses = expenses.filter(e => e.user === activeUser);
+  // ── Show API key setup if no key ────────────────────────────────────────
+  if (!apiKey) return <ApiKeySetup onSave={handleSaveKey} />;
+
+  // ── Derived ────────────────────────────────────────────────────────────
+  const userExp      = expenses.filter(e => e.user === activeUser);
   const thisMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthKey = `${lastMonth.getFullYear()}-${lastMonth.getMonth()}`;
-  const thisMonthExp = userExpenses.filter(e => getMonthKey(e.date) === thisMonthKey);
-  const lastMonthExp = userExpenses.filter(e => getMonthKey(e.date) === lastMonthKey);
-  const sumExp = (arr) => arr.reduce((s, e) => s + e.amount, 0);
+  const lastMonthKey = (() => { const d = new Date(now.getFullYear(), now.getMonth()-1,1); return `${d.getFullYear()}-${d.getMonth()}`; })();
+  const thisMonthExp = userExp.filter(e => getMonthKey(e.date) === thisMonthKey);
+  const lastMonthExp = userExp.filter(e => getMonthKey(e.date) === lastMonthKey);
 
-  const monthBudget = budgets[activeUser] || 3000;
-  const thisMonthSpent = sumExp(thisMonthExp);
-  const budgetRemaining = monthBudget - thisMonthSpent;
-  const budgetPct = Math.min((thisMonthSpent / monthBudget) * 100, 100);
-  const budgetColor = budgetPct >= 90 ? "#ff4444" : budgetPct >= 70 ? "#ffaa00" : "#4ade80";
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const daysLeft = daysInMonth - now.getDate();
-  const dailyLeft = daysLeft > 0 ? budgetRemaining / daysLeft : 0;
-  const expectedSpend = (now.getDate() / daysInMonth) * monthBudget;
-  const onTrack = thisMonthSpent <= expectedSpend;
+  const monthBudget    = budgets[activeUser] ?? 3000;
+  const thisMonthSpent = sumAmt(thisMonthExp);
+  const budgetLeft     = monthBudget - thisMonthSpent;
+  const budgetPct      = Math.min((thisMonthSpent / monthBudget) * 100, 100);
+  const budgetColor    = budgetPct >= 90 ? "#ff4444" : budgetPct >= 70 ? "#ffaa00" : "#4ade80";
+  const daysInMonth    = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const daysLeft       = daysInMonth - now.getDate();
+  const dailyLeft      = daysLeft > 0 ? budgetLeft / daysLeft : 0;
+  const onTrack        = thisMonthSpent <= (now.getDate() / daysInMonth) * monthBudget;
 
-  // Analytics
-  const analyticsExp = userExpenses.filter(e => getMonthKey(e.date) === analyticsPeriod);
-  const byCat = CATEGORIES
-    .map(c => ({ ...c, value: analyticsExp.filter(e => e.category === c.id).reduce((s, e) => s + e.amount, 0) }))
-    .filter(c => c.value > 0).sort((a, b) => b.value - a.value);
-  const maxCatVal = byCat[0]?.value || 1;
-  const availableMonths = [...new Set(userExpenses.map(e => getMonthKey(e.date)))].sort().reverse();
-  const recentExp = [...userExpenses].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8);
+  const analyticsExp    = userExp.filter(e => getMonthKey(e.date) === analyticsPeriod);
+  const byCat           = CATEGORIES.map(c => ({ ...c, value: analyticsExp.filter(e => e.category === c.id).reduce((s,e)=>s+e.amount,0) })).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
+  const availableMonths = [...new Set(userExp.map(e => getMonthKey(e.date)))].sort().reverse();
+  const recentExp       = [...userExp].sort((a,b) => new Date(b.date)-new Date(a.date)).slice(0, 8);
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── Actions ────────────────────────────────────────────────────────────
   function addExpense() {
     if (!form.amount || !form.description) return;
     setExpenses(p => [...p, { id: genId(), user: activeUser, amount: parseFloat(form.amount), description: form.description, category: form.category, date: form.date, source: "manual" }]);
@@ -243,27 +311,6 @@ export default function App() {
 
   function deleteExpense(id) { setExpenses(p => p.filter(e => e.id !== id)); }
 
-  async function handleBankParse() {
-    if (!bankText.trim()) return;
-    setBankParsing(true); setBankResults([]); setBankError("");
-    try {
-      const results = await categorizeBankStatement(bankText);
-      setBankResults(results);
-    } catch (e) {
-      setBankError(e.message || "Failed to parse. Check your API key.");
-    }
-    setBankParsing(false);
-  }
-
-  function importBankResults() {
-    setExpenses(p => [...p, ...bankResults.map(r => ({
-      id: genId(), user: activeUser, amount: parseFloat(r.amount) || 0,
-      description: r.description, category: r.category,
-      date: r.date || new Date().toISOString().split("T")[0], source: "bank"
-    }))]);
-    setBankImported(true); setBankText(""); setBankResults([]);
-  }
-
   async function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -272,9 +319,8 @@ export default function App() {
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
       setPdfLoading(true);
       try {
-        const arrayBuffer = await file.arrayBuffer();
-        // slice(0) copies the buffer so PDF.js doesn't detach the original
-        const { text, pages } = await extractTextFromPDF(arrayBuffer.slice(0));
+        const buf          = await file.arrayBuffer();
+        const { text, pages } = await extractTextFromPDF(buf.slice(0));
         setPdfInfo({ name: file.name, pages });
         setBankText(text);
       } catch (err) {
@@ -282,40 +328,61 @@ export default function App() {
       }
       setPdfLoading(false);
     } else {
-      // CSV / TXT
       const text = await file.text();
       setBankText(text);
       setPdfInfo({ name: file.name, pages: null });
     }
-    // reset input so same file can be re-uploaded
     e.target.value = "";
   }
 
-  // ── Styles ─────────────────────────────────────────────────────────────────
+  async function handleBankParse() {
+    if (!bankText.trim()) return;
+    setBankParsing(true); setBankResults([]); setBankError("");
+    try {
+      const results = await categorizeStatement(bankText, apiKey);
+      if (!Array.isArray(results) || results.length === 0) throw new Error("No transactions found. Try a different statement format.");
+      setBankResults(results);
+    } catch (err) {
+      setBankError(err.message || "Failed to parse. Check your API key.");
+    }
+    setBankParsing(false);
+  }
+
+  function importBankResults() {
+    setExpenses(p => [...p, ...bankResults.map(r => ({
+      id: genId(), user: activeUser, amount: parseFloat(r.amount) || 0,
+      description: r.description, category: r.category,
+      date: r.date || new Date().toISOString().split("T")[0], source: "bank",
+    }))]);
+    setBankImported(true); setBankText(""); setBankResults([]); setPdfInfo(null);
+  }
+
+  // ── Styles ─────────────────────────────────────────────────────────────
   const S = {
-    app: { minHeight: "100vh", background: "#0a0a16", color: "#e8e8f0", fontFamily: "'DM Sans','Segoe UI',sans-serif", maxWidth: 480, margin: "0 auto", paddingBottom: 90 },
-    header: { padding: "16px 20px 12px", borderBottom: "1px solid #1e1e3a", background: "rgba(10,10,22,0.96)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10 },
-    userBtn: a => ({ padding: "5px 14px", borderRadius: 20, border: a ? "1px solid #7c6fff" : "1px solid #2a2a4a", background: a ? "#7c6fff22" : "transparent", color: a ? "#a99fff" : "#666", fontSize: 13, cursor: "pointer", fontWeight: a ? 600 : 400 }),
-    navBtn: a => ({ flex: 1, padding: "9px 4px", borderRadius: 10, border: "none", background: a ? "#7c6fff" : "#1a1a2e", color: a ? "#fff" : "#888", fontSize: 11, fontWeight: a ? 700 : 400, cursor: "pointer" }),
-    sec: { padding: "20px 20px 10px" },
-    card: { background: "#12122a", borderRadius: 16, padding: 16, border: "1px solid #1e1e3a", marginBottom: 12 },
+    app:      { minHeight: "100vh", background: "#0a0a16", color: "#e8e8f0", fontFamily: "'DM Sans','Segoe UI',sans-serif", maxWidth: 480, margin: "0 auto", paddingBottom: 90 },
+    header:   { padding: "16px 20px 12px", borderBottom: "1px solid #1e1e3a", background: "rgba(10,10,22,0.96)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 10 },
+    userBtn:  a => ({ padding: "5px 14px", borderRadius: 20, border: a ? "1px solid #7c6fff" : "1px solid #2a2a4a", background: a ? "#7c6fff22" : "transparent", color: a ? "#a99fff" : "#666", fontSize: 13, cursor: "pointer", fontWeight: a ? 600 : 400 }),
+    navBtn:   a => ({ flex: 1, padding: "9px 4px", borderRadius: 10, border: "none", background: a ? "#7c6fff" : "#1a1a2e", color: a ? "#fff" : "#888", fontSize: 11, fontWeight: a ? 700 : 400, cursor: "pointer" }),
+    sec:      { padding: "20px 20px 10px" },
+    card:     { background: "#12122a", borderRadius: 16, padding: 16, border: "1px solid #1e1e3a", marginBottom: 12 },
     statCard: { background: "linear-gradient(135deg,#1a1a3a,#12122a)", borderRadius: 16, padding: 16, border: "1px solid #2a2a5a", flex: 1 },
-    label: { fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 },
-    bigNum: { fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px" },
-    input: { width: "100%", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "12px 14px", color: "#e8e8f0", fontSize: 15, outline: "none", boxSizing: "border-box" },
-    inputLabel: { fontSize: 12, color: "#888", marginBottom: 6, display: "block" },
-    btn: { width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#7c6fff,#5a4fe8)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" },
-    catGrid: { display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 20 },
-    catBtn: (a, color) => ({ padding: "10px 4px", borderRadius: 12, border: a ? `2px solid ${color}` : "2px solid #1e1e3a", background: a ? `${color}18` : "#12122a", cursor: "pointer", textAlign: "center" }),
-    expRow: { display: "flex", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #1a1a2e", gap: 12 },
-    catDot: color => ({ width: 36, height: 36, borderRadius: 10, background: `${color}22`, border: `1.5px solid ${color}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }),
-    delBtn: { background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 16, padding: "0 4px", flexShrink: 0 },
-    textarea: { width: "100%", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "12px 14px", color: "#e8e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", minHeight: 100, fontFamily: "monospace" },
-    tag: color => ({ display: "inline-block", padding: "2px 8px", borderRadius: 20, background: `${color}22`, color, fontSize: 11, fontWeight: 600, border: `1px solid ${color}44` }),
+    label:    { fontSize: 11, color: "#555", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 },
+    bigNum:   { fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px" },
+    input:    { width: "100%", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "12px 14px", color: "#e8e8f0", fontSize: 15, outline: "none", boxSizing: "border-box" },
+    iLabel:   { fontSize: 12, color: "#888", marginBottom: 6, display: "block" },
+    btn:      { width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#7c6fff,#5a4fe8)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" },
+    catGrid:  { display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 20 },
+    catBtn:   (a,c) => ({ padding: "10px 4px", borderRadius: 12, border: a ? `2px solid ${c}` : "2px solid #1e1e3a", background: a ? `${c}18` : "#12122a", cursor: "pointer", textAlign: "center" }),
+    expRow:   { display: "flex", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #1a1a2e", gap: 12 },
+    catDot:   c => ({ width: 36, height: 36, borderRadius: 10, background: `${c}22`, border: `1.5px solid ${c}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }),
+    delBtn:   { background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: 16, padding: "0 4px", flexShrink: 0 },
+    textarea: { width: "100%", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "12px 14px", color: "#e8e8f0", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", minHeight: 110, fontFamily: "monospace" },
+    tag:      c => ({ display: "inline-block", padding: "2px 8px", borderRadius: 20, background: `${c}22`, color: c, fontSize: 11, fontWeight: 600, border: `1px solid ${c}44` }),
     monthSel: { background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "8px 12px", color: "#e8e8f0", fontSize: 13, outline: "none" },
+    spinner:  { width: 16, height: 16, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite", flexShrink: 0 },
   };
 
-  function ExpenseRow({ e, showDelete = true }) {
+  function ExpRow({ e, showDel = true }) {
     const cat = getCatInfo(e.category);
     return (
       <div style={S.expRow}>
@@ -328,14 +395,15 @@ export default function App() {
           </div>
         </div>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#ff8a8a", flexShrink: 0 }}>-${e.amount.toFixed(2)}</div>
-        {showDelete && <button style={S.delBtn} onClick={() => deleteExpense(e.id)}>✕</button>}
+        {showDel && <button style={S.delBtn} onClick={() => deleteExpense(e.id)}>✕</button>}
       </div>
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div style={S.app}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* HEADER */}
       <div style={S.header}>
@@ -392,7 +460,6 @@ export default function App() {
               <BudgetGauge pct={budgetPct} color={budgetColor} />
             </div>
 
-            {/* Spent / Remaining */}
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               <div style={{ flex: 1, background: "#ff444411", borderRadius: 10, padding: "10px 12px", border: "1px solid #ff444433" }}>
                 <div style={{ fontSize: 10, color: "#ff8888", textTransform: "uppercase", letterSpacing: 1 }}>Spent</div>
@@ -400,27 +467,19 @@ export default function App() {
               </div>
               <div style={{ flex: 1, background: `${budgetColor}11`, borderRadius: 10, padding: "10px 12px", border: `1px solid ${budgetColor}33` }}>
                 <div style={{ fontSize: 10, color: budgetColor, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {budgetRemaining >= 0 ? "Remaining" : "Over Budget"}
+                  {budgetLeft >= 0 ? "Remaining" : "Over Budget"}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: budgetColor, marginTop: 2 }}>${Math.abs(budgetRemaining).toFixed(2)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: budgetColor, marginTop: 2 }}>${Math.abs(budgetLeft).toFixed(2)}</div>
               </div>
             </div>
 
-            {/* Progress bar */}
             <div style={{ background: "#1a1a2e", borderRadius: 8, height: 8, overflow: "hidden", marginBottom: 10 }}>
               <div style={{ width: `${budgetPct}%`, background: `linear-gradient(90deg,${budgetColor}88,${budgetColor})`, height: "100%", borderRadius: 8, transition: "width 0.8s ease" }} />
             </div>
 
-            {/* Pace info */}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-              <span style={{ color: onTrack ? "#4ade80" : "#ffaa00" }}>
-                {onTrack ? "✅ On track" : "⚠️ Spending fast"}
-              </span>
-              <span style={{ color: "#555" }}>
-                {daysLeft}d left · <span style={{ color: dailyLeft >= 0 ? "#a99fff" : "#ff6b6b" }}>
-                  ${Math.abs(dailyLeft).toFixed(0)}/day
-                </span>
-              </span>
+              <span style={{ color: onTrack ? "#4ade80" : "#ffaa00" }}>{onTrack ? "✅ On track" : "⚠️ Spending fast"}</span>
+              <span style={{ color: "#555" }}>{daysLeft}d left · <span style={{ color: dailyLeft >= 0 ? "#a99fff" : "#ff6b6b" }}>${Math.abs(dailyLeft).toFixed(0)}/day</span></span>
             </div>
           </div>
 
@@ -433,15 +492,14 @@ export default function App() {
             </div>
             <div style={S.statCard}>
               <div style={S.label}>Last Month</div>
-              <div style={{ ...S.bigNum, color: "#4ECDC4" }}>${sumExp(lastMonthExp).toFixed(2)}</div>
+              <div style={{ ...S.bigNum, color: "#4ECDC4" }}>${sumAmt(lastMonthExp).toFixed(2)}</div>
               <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>{lastMonthExp.length} transactions</div>
             </div>
           </div>
 
           {/* This month breakdown */}
           {thisMonthExp.length > 0 && (() => {
-            const cats = CATEGORIES.map(c => ({ ...c, value: thisMonthExp.filter(e => e.category === c.id).reduce((s, e) => s + e.amount, 0) }))
-              .filter(c => c.value > 0).sort((a, b) => b.value - a.value);
+            const cats = CATEGORIES.map(c => ({ ...c, value: thisMonthExp.filter(e=>e.category===c.id).reduce((s,e)=>s+e.amount,0) })).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
             return (
               <div style={S.card}>
                 <div style={{ fontSize: 12, color: "#888", marginBottom: 12, fontWeight: 600 }}>THIS MONTH BREAKDOWN</div>
@@ -455,7 +513,7 @@ export default function App() {
             <div style={{ fontSize: 12, color: "#888", marginBottom: 12, fontWeight: 600 }}>RECENT</div>
             {recentExp.length === 0
               ? <div style={{ textAlign: "center", color: "#444", padding: "20px 0", fontSize: 13 }}>No expenses yet. Tap ➕ to add!</div>
-              : recentExp.map(e => <ExpenseRow key={e.id} e={e} />)
+              : recentExp.map(e => <ExpRow key={e.id} e={e} />)
             }
           </div>
         </div>
@@ -466,34 +524,37 @@ export default function App() {
         <div style={S.sec}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Add Expense</div>
           <div style={{ marginBottom: 16 }}>
-            <span style={S.inputLabel}>Category</span>
+            <span style={S.iLabel}>Category</span>
             <div style={S.catGrid}>
               {CATEGORIES.map(c => (
-                <div key={c.id} style={S.catBtn(form.category === c.id, c.color)} onClick={() => setForm(f => ({ ...f, category: c.id }))}>
+                <div key={c.id} style={S.catBtn(form.category===c.id, c.color)} onClick={() => setForm(f=>({...f,category:c.id}))}>
                   <div style={{ fontSize: 20 }}>{c.icon}</div>
-                  <div style={{ fontSize: 9, color: form.category === c.id ? c.color : "#666", marginTop: 2, lineHeight: 1.2 }}>{c.label.split(" ")[0]}</div>
+                  <div style={{ fontSize: 9, color: form.category===c.id ? c.color : "#666", marginTop: 2, lineHeight: 1.2 }}>{c.label.split(" ")[0]}</div>
                 </div>
               ))}
             </div>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={S.inputLabel}>Amount ($)</label>
-            <input style={S.input} type="number" inputMode="decimal" placeholder="0.00" value={form.amount}
-              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+            <label style={S.iLabel}>Amount ($)</label>
+            <input style={S.input} type="number" inputMode="decimal" placeholder="0.00" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={S.inputLabel}>Description</label>
-            <input style={S.input} type="text" placeholder="What did you spend on?" value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            <label style={S.iLabel}>Description</label>
+            <input style={S.input} type="text" placeholder="What did you spend on?" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} />
           </div>
           <div style={{ marginBottom: 24 }}>
-            <label style={S.inputLabel}>Date</label>
-            <input style={S.input} type="date" value={form.date}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            <label style={S.iLabel}>Date</label>
+            <input style={S.input} type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} />
           </div>
-          <button style={{ ...S.btn, opacity: (!form.amount || !form.description) ? 0.5 : 1 }} onClick={addExpense}>
-            Add Expense
-          </button>
+          <button style={{ ...S.btn, opacity: (!form.amount||!form.description) ? 0.5:1 }} onClick={addExpense}>Add Expense</button>
+
+          {/* Change API key link */}
+          <div style={{ textAlign: "center", marginTop: 20 }}>
+            <button style={{ background:"none", border:"none", color:"#444", fontSize:11, cursor:"pointer" }}
+              onClick={() => { localStorage.removeItem("spendwise_apikey"); setApiKey(""); }}>
+              🔑 Change API Key
+            </button>
+          </div>
         </div>
       )}
 
@@ -502,44 +563,45 @@ export default function App() {
         <div style={S.sec}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>Analytics</div>
-            <select style={S.monthSel} value={analyticsPeriod} onChange={e => setAnalyticsPeriod(e.target.value)}>
+            <select style={S.monthSel} value={analyticsPeriod} onChange={e=>setAnalyticsPeriod(e.target.value)}>
               {availableMonths.length === 0 && <option value={thisMonthKey}>{MonthLabel(thisMonthKey)}</option>}
               {availableMonths.map(m => <option key={m} value={m}>{MonthLabel(m)}</option>)}
             </select>
           </div>
 
-          {analyticsExp.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#444", padding: "40px 0", fontSize: 13 }}>No expenses for this period.</div>
-          ) : (
-            <>
-              <div style={S.card}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={S.label}>Total Spent</div>
-                    <div style={{ fontSize: 32, fontWeight: 700, color: "#ff8a8a" }}>${sumExp(analyticsExp).toFixed(2)}</div>
-                    <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>{analyticsExp.length} transactions</div>
-                    {analyticsPeriod === thisMonthKey && (
-                      <div style={{ marginTop: 8 }}>
-                        <div style={{ fontSize: 11, color: "#888" }}>Budget: <span style={{ color: "#e8e8f0", fontWeight: 600 }}>${monthBudget.toLocaleString()}</span></div>
-                        <div style={{ fontSize: 11, color: budgetColor, fontWeight: 600, marginTop: 2 }}>
-                          {budgetRemaining >= 0 ? `$${budgetRemaining.toFixed(2)} remaining` : `$${Math.abs(budgetRemaining).toFixed(2)} over budget`}
+          {analyticsExp.length === 0
+            ? <div style={{ textAlign:"center", color:"#444", padding:"40px 0", fontSize:13 }}>No expenses for this period.</div>
+            : (
+              <>
+                <div style={S.card}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={S.label}>Total Spent</div>
+                      <div style={{ fontSize:32, fontWeight:700, color:"#ff8a8a" }}>${sumAmt(analyticsExp).toFixed(2)}</div>
+                      <div style={{ fontSize:12, color:"#555", marginTop:4 }}>{analyticsExp.length} transactions</div>
+                      {analyticsPeriod === thisMonthKey && (
+                        <div style={{ marginTop:8 }}>
+                          <div style={{ fontSize:11, color:"#888" }}>Budget: <span style={{ color:"#e8e8f0", fontWeight:600 }}>${monthBudget.toLocaleString()}</span></div>
+                          <div style={{ fontSize:11, color:budgetColor, fontWeight:600, marginTop:2 }}>
+                            {budgetLeft >= 0 ? `$${budgetLeft.toFixed(2)} remaining` : `$${Math.abs(budgetLeft).toFixed(2)} over budget`}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <DonutChart data={byCat.map(c=>({color:c.color,value:c.value}))} />
                   </div>
-                  <DonutChart data={byCat.map(c => ({ color: c.color, value: c.value }))} />
                 </div>
-              </div>
-              <div style={S.card}>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 12, fontWeight: 600 }}>BY CATEGORY</div>
-                {byCat.map(c => <BarRow key={c.id} label={c.label} value={c.value} max={maxCatVal} color={c.color} icon={c.icon} />)}
-              </div>
-              <div style={S.card}>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 12, fontWeight: 600 }}>ALL TRANSACTIONS</div>
-                {[...analyticsExp].sort((a, b) => new Date(b.date) - new Date(a.date)).map(e => <ExpenseRow key={e.id} e={e} />)}
-              </div>
-            </>
-          )}
+                <div style={S.card}>
+                  <div style={{ fontSize:12, color:"#888", marginBottom:12, fontWeight:600 }}>BY CATEGORY</div>
+                  {byCat.map(c => <BarRow key={c.id} label={c.label} value={c.value} max={byCat[0].value} color={c.color} icon={c.icon} />)}
+                </div>
+                <div style={S.card}>
+                  <div style={{ fontSize:12, color:"#888", marginBottom:12, fontWeight:600 }}>ALL TRANSACTIONS</div>
+                  {[...analyticsExp].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=><ExpRow key={e.id} e={e} />)}
+                </div>
+              </>
+            )
+          }
         </div>
       )}
 
@@ -548,59 +610,51 @@ export default function App() {
         <div style={S.sec}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Bank Import</div>
           <div style={{ fontSize: 12, color: "#666", marginBottom: 16 }}>
-            Upload your credit card statement — <span style={{ color: "#a99fff", fontWeight: 600 }}>PDF</span>, CSV, or TXT. AI will extract and categorize every transaction automatically.
+            Upload your credit card statement — <span style={{ color:"#a99fff", fontWeight:600 }}>PDF</span>, CSV, or TXT. AI will extract and categorize every transaction.
           </div>
 
-          {/* Format badges */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            {[["📄 PDF", "#7c6fff"], ["📊 CSV", "#4ECDC4"], ["📝 TXT", "#96CEB4"]].map(([label, color]) => (
-              <div key={label} style={{ padding: "4px 12px", borderRadius: 20, background: `${color}18`, border: `1px solid ${color}44`, fontSize: 11, color, fontWeight: 600 }}>{label}</div>
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            {[["📄 PDF","#7c6fff"],["📊 CSV","#4ECDC4"],["📝 TXT","#96CEB4"]].map(([l,c]) => (
+              <div key={l} style={{ padding:"4px 12px", borderRadius:20, background:`${c}18`, border:`1px solid ${c}44`, fontSize:11, color:c, fontWeight:600 }}>{l}</div>
             ))}
           </div>
 
           <div style={S.card}>
-            <input ref={fileRef} type="file" accept=".pdf,.csv,.txt" style={{ display: "none" }} onChange={handleFileUpload} />
+            <input ref={fileRef} type="file" accept=".pdf,.csv,.txt" style={{ display:"none" }} onChange={handleFileUpload} />
 
-            {/* Upload button */}
-            <button
-              style={{ ...S.btn, background: "#1a1a3a", border: "2px dashed #5a4fe8", color: "#a99fff", marginBottom: 12, opacity: pdfLoading ? 0.6 : 1, fontSize: 14 }}
-              onClick={() => { fileRef.current.click(); }}
-              disabled={pdfLoading}
-            >
+            <button style={{ ...S.btn, background:"#1a1a3a", border:"2px dashed #5a4fe8", color:"#a99fff", marginBottom:12, opacity:pdfLoading?0.6:1, fontSize:14 }}
+              onClick={() => fileRef.current.click()} disabled={pdfLoading}>
               {pdfLoading ? "⏳ Reading PDF..." : "📄 Upload Statement (PDF / CSV / TXT)"}
             </button>
 
-            {/* PDF spinner */}
             {pdfLoading && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#1a1a3a", borderRadius: 10, marginBottom: 12 }}>
-                <div style={{ width: 18, height: 18, border: "2px solid #7c6fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite", flexShrink: 0 }} />
+              <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:"#1a1a3a", borderRadius:10, marginBottom:12 }}>
+                <div style={{ ...S.spinner, color:"#7c6fff" }} />
                 <div>
-                  <div style={{ fontSize: 13, color: "#a99fff", fontWeight: 600 }}>Extracting text from PDF</div>
-                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Reading all pages...</div>
+                  <div style={{ fontSize:13, color:"#a99fff", fontWeight:600 }}>Extracting text from PDF</div>
+                  <div style={{ fontSize:11, color:"#555", marginTop:2 }}>Reading all pages...</div>
                 </div>
               </div>
             )}
 
-            {/* File loaded badge */}
             {pdfInfo && !pdfLoading && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "#0d2a1a", border: "1px solid #1a6a3a", borderRadius: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 22 }}>{pdfInfo.name.endsWith(".pdf") ? "📄" : "📊"}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#4ade80", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pdfInfo.name}</div>
-                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-                    {pdfInfo.pages ? `${pdfInfo.pages} page${pdfInfo.pages > 1 ? "s" : ""} · ` : ""}
+              <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:"#0d2a1a", border:"1px solid #1a6a3a", borderRadius:10, marginBottom:12 }}>
+                <span style={{ fontSize:22 }}>{pdfInfo.name.toLowerCase().endsWith(".pdf") ? "📄" : "📊"}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#4ade80", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{pdfInfo.name}</div>
+                  <div style={{ fontSize:11, color:"#555", marginTop:2 }}>
+                    {pdfInfo.pages ? `${pdfInfo.pages} page${pdfInfo.pages>1?"s":""} · ` : ""}
                     {bankText.length.toLocaleString()} characters extracted ✓
                   </div>
                 </div>
-                <button style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 18, padding: "0 4px", flexShrink: 0 }}
+                <button style={{ background:"none", border:"none", color:"#555", cursor:"pointer", fontSize:18, padding:"0 4px", flexShrink:0 }}
                   onClick={() => { setBankText(""); setPdfInfo(null); setBankResults([]); setBankError(""); }}>✕</button>
               </div>
             )}
 
-            {/* Manual paste — only show when no file loaded */}
             {!pdfInfo && !pdfLoading && (
               <>
-                <div style={{ fontSize: 11, color: "#444", textAlign: "center", marginBottom: 10 }}>— or paste statement text below —</div>
+                <div style={{ fontSize:11, color:"#444", textAlign:"center", marginBottom:10 }}>— or paste statement text below —</div>
                 <textarea style={S.textarea}
                   placeholder={"Paste statement text here...\ne.g.\n2024-03-05  GRAB FOOD         $24.50\n2024-03-07  COMFORT DEL TAXI  $12.00\n2024-03-10  NTUC FAIRPRICE    $85.30"}
                   value={bankText}
@@ -609,69 +663,57 @@ export default function App() {
             )}
 
             {bankError && (
-              <div style={{ color: "#ff6b6b", fontSize: 12, marginTop: 8, padding: "10px 12px", background: "#ff000014", borderRadius: 8, border: "1px solid #ff000033" }}>
+              <div style={{ color:"#ff6b6b", fontSize:12, marginTop:8, padding:"10px 12px", background:"#ff000014", borderRadius:8, border:"1px solid #ff000033" }}>
                 ⚠️ {bankError}
               </div>
             )}
 
-            <button
-              style={{ ...S.btn, marginTop: 12, opacity: (bankParsing || !bankText.trim() || pdfLoading) ? 0.45 : 1 }}
-              onClick={handleBankParse}
-              disabled={bankParsing || !bankText.trim() || pdfLoading}
-            >
+            <button style={{ ...S.btn, marginTop:12, opacity:(bankParsing||!bankText.trim()||pdfLoading)?0.45:1 }}
+              onClick={handleBankParse} disabled={bankParsing||!bankText.trim()||pdfLoading}>
               {bankParsing
-                ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <span style={{ width: 14, height: 14, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-                    Analyzing with AI...
+                ? <span style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    <span style={{ ...S.spinner, color:"#fff" }} /> Analyzing with AI...
                   </span>
                 : "🤖 Categorize with AI"}
             </button>
           </div>
 
-          {/* Results preview */}
           {bankResults.length > 0 && !bankImported && (
             <div style={S.card}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                 <div>
-                  <div style={{ fontSize: 12, color: "#888", fontWeight: 600 }}>AI FOUND {bankResults.length} TRANSACTIONS</div>
-                  <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-                    Total: <span style={{ color: "#ff8a8a", fontWeight: 600 }}>
-                      ${bankResults.reduce((s, r) => s + parseFloat(r.amount || 0), 0).toFixed(2)}
-                    </span>
-                  </div>
+                  <div style={{ fontSize:12, color:"#888", fontWeight:600 }}>FOUND {bankResults.length} TRANSACTIONS</div>
+                  <div style={{ fontSize:11, color:"#555", marginTop:2 }}>Total: <span style={{ color:"#ff8a8a", fontWeight:600 }}>${bankResults.reduce((s,r)=>s+parseFloat(r.amount||0),0).toFixed(2)}</span></div>
                 </div>
-                <div style={{ fontSize: 11, color: "#555" }}>Review & import ↓</div>
               </div>
-              {bankResults.map((r, i) => {
+              {bankResults.map((r,i) => {
                 const cat = getCatInfo(r.category);
                 return (
                   <div key={i} style={S.expRow}>
                     <div style={S.catDot(cat.color)}>{cat.icon}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.description}</div>
-                      <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{r.date} · <span style={S.tag(cat.color)}>{cat.label}</span></div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.description}</div>
+                      <div style={{ fontSize:11, color:"#555", marginTop:2 }}>{r.date} · <span style={S.tag(cat.color)}>{cat.label}</span></div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#ff8a8a", flexShrink: 0 }}>-${parseFloat(r.amount).toFixed(2)}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:"#ff8a8a", flexShrink:0 }}>-${parseFloat(r.amount).toFixed(2)}</div>
                   </div>
                 );
               })}
-              <button style={{ ...S.btn, marginTop: 14 }} onClick={importBankResults}>
+              <button style={{ ...S.btn, marginTop:14 }} onClick={importBankResults}>
                 ✅ Import All {bankResults.length} Transactions
               </button>
             </div>
           )}
 
           {bankImported && (
-            <div style={{ ...S.card, background: "#0a2a1a", borderColor: "#1a5a3a", textAlign: "center", padding: 24 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-              <div style={{ color: "#4ade80", fontWeight: 700, fontSize: 16 }}>Imported Successfully!</div>
-              <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>All transactions added to your expenses</div>
-              <button style={{ ...S.btn, marginTop: 16, background: "#1a3a2a", border: "1px solid #2a6a4a", color: "#4ade80" }}
+            <div style={{ ...S.card, background:"#0a2a1a", borderColor:"#1a5a3a", textAlign:"center", padding:24 }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
+              <div style={{ color:"#4ade80", fontWeight:700, fontSize:16 }}>Imported Successfully!</div>
+              <div style={{ fontSize:12, color:"#555", marginTop:6 }}>All transactions added to your expenses</div>
+              <button style={{ ...S.btn, marginTop:16, background:"#1a3a2a", border:"1px solid #2a6a4a", color:"#4ade80" }}
                 onClick={() => setView("analytics")}>View Analytics →</button>
             </div>
           )}
-
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
     </div>
