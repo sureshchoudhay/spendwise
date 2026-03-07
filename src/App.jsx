@@ -222,7 +222,7 @@ export default function App() {
       if (!Array.isArray(results) || results.length === 0) throw new Error("No transactions found. Try a different statement format.");
       setBankResults(results);
     } catch (err) {
-      setBankError(err.message || "Failed to parse. Check your API key.");
+      setBankError(err.message || "Failed to parse. Check GEMINI_API_KEY in Vercel → Settings → Environment Variables.");
     }
     setBankParsing(false);
   }
