@@ -19,7 +19,7 @@ const CATEGORIES = [
   { id: "others",        label: "Others",            icon: "📦", color: "#AEB6BF" },
 ];
 
-const USERS  = ["Anirudh", "Guest"];
+const USERS  = ["Anirudh", "Bella"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
