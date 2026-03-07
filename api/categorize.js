@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
     "- Only include debit/spending transactions";
 
   try {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
 
     const response = await fetch(url, {
       method: "POST",
