@@ -21,7 +21,7 @@ const EARNING_TYPES = [
   { id:"bonus",     label:"Bonus",     icon:"🎁" },
   { id:"other",     label:"Other",     icon:"💰" },
 ];
-const USERS  = ["Anirudh", "Wifey"];
+const USERS  = ["Suresh", "Bella"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -423,6 +423,7 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
   const [recurring, setRecurring] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [search, setSearch] = useState("");
+  const [editingFavs, setEditingFavs] = useState(false);
 
   const thisMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
   const userExp = expenses.filter(e=>e.user===user);
@@ -450,17 +451,31 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
       {/* Quick-add favourites */}
       {favourites.length>0 && (
         <div style={{ marginBottom:16 }}>
-          <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>⭐ Quick Add</div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1 }}>⭐ Quick Add</div>
+            <button onClick={()=>setEditingFavs(e=>!e)}
+              style={{ background:"none", border:"none", color:editingFavs?"#4ade80":"#555", fontSize:11, cursor:"pointer", padding:0 }}>
+              {editingFavs?"✓ Done":"✏️ Edit"}
+            </button>
+          </div>
           <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4 }}>
             {favourites.map((f,i)=>{
               const cat=getCatInfo(f.category);
               return (
-                <button key={i} onClick={()=>handleQuickAdd(f)}
-                  style={{ flexShrink:0, background:`${cat.color}11`, border:`1px solid ${cat.color}33`, borderRadius:12, padding:"8px 12px", cursor:"pointer", textAlign:"center", minWidth:72 }}>
-                  <div style={{ fontSize:20 }}>{cat.icon}</div>
-                  <div style={{ fontSize:10, color:cat.color, marginTop:2, fontWeight:600 }}>${f.amount}</div>
-                  <div style={{ fontSize:9, color:"#666", marginTop:1 }}>{f.description.slice(0,8)}</div>
-                </button>
+                <div key={i} style={{ position:"relative", flexShrink:0 }}>
+                  <button onClick={()=>!editingFavs && handleQuickAdd(f)}
+                    style={{ display:"block", background:`${cat.color}11`, border:`1px solid ${editingFavs?"#ff444466":`${cat.color}33`}`, borderRadius:12, padding:"8px 12px", cursor:editingFavs?"default":"pointer", textAlign:"center", minWidth:72, opacity:editingFavs?0.65:1 }}>
+                    <div style={{ fontSize:20 }}>{cat.icon}</div>
+                    <div style={{ fontSize:10, color:cat.color, marginTop:2, fontWeight:600 }}>${f.amount}</div>
+                    <div style={{ fontSize:9, color:"#666", marginTop:1 }}>{f.description.slice(0,9)}</div>
+                  </button>
+                  {editingFavs && (
+                    <button onClick={()=>onToggleFav(f)}
+                      style={{ position:"absolute", top:-7, right:-7, width:22, height:22, borderRadius:"50%", background:"#ff4444", border:"2px solid #0a0a16", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, padding:0, lineHeight:1 }}>
+                      ×
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -869,7 +884,7 @@ function BankTab({ onImport }) {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [activeUser, setActiveUser] = useState("Anirudh");
+  const [activeUser, setActiveUser] = useState("Suresh");
   const [view,       setView]       = useState("expense");
 
   const [expenses,  setExpenses]  = useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_expenses")||"[]");}catch{return [];} });
@@ -956,7 +971,7 @@ export default function App() {
             {USERS.map(u=>(
               <button key={u} onClick={()=>setActiveUser(u)}
                 style={{ padding:"5px 12px", borderRadius:20, border:activeUser===u?"1px solid #7c6fff":"1px solid #2a2a4a", background:activeUser===u?"#7c6fff22":"transparent", color:activeUser===u?"#a99fff":"#666", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
-                {u==="Anirudh"?"👤":"👩"} {u}
+                {u==="Suresh"?"👤":"👩"} {u}
               </button>
             ))}
           </div>
