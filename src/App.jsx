@@ -26,7 +26,7 @@ const EARNING_TYPES = [
   { id: "other",     label: "Other",     icon: "💰" },
 ];
 
-const USERS  = ["Suresh", "Bella"];
+const USERS  = ["Anirudh", "Wifey"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -288,8 +288,10 @@ function AddExpenseTab({ user, onAdd }) {
   const [date,     setDate]     = useState(now.toISOString().split("T")[0]);
 
   function handleAdd() {
-    if (!amount || !desc) return;
-    onAdd({ tag, category, amount: parseFloat(amount), description: desc, date });
+    if (!amount) return;
+    const cat = CATEGORIES.find(c => c.id === category);
+    const finalDesc = desc.trim() || (cat ? cat.label : category);
+    onAdd({ tag, category, amount: parseFloat(amount), description: finalDesc, date });
     setAmount(""); setDesc(""); setTag("personal"); setCategory("food");
     setDate(now.toISOString().split("T")[0]);
   }
@@ -337,15 +339,15 @@ function AddExpenseTab({ user, onAdd }) {
       </div>
       <div style={{ marginBottom:14 }}>
         <label style={S.iLabel}>Description</label>
-        <input style={S.input} type="text" placeholder="What did you spend on?" value={desc} onChange={e=>setDesc(e.target.value)} />
+        <input style={S.input} type="text" placeholder="Description (optional — e.g. Grab Food)" value={desc} onChange={e=>setDesc(e.target.value)} />
       </div>
       <div style={{ marginBottom:24 }}>
         <label style={S.iLabel}>Date</label>
         <input style={S.input} type="date" value={date} onChange={e=>setDate(e.target.value)} />
       </div>
 
-      <button style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#7c6fff,#5a4fe8)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", opacity:(!amount||!desc)?0.5:1 }}
-        onClick={handleAdd} disabled={!amount||!desc}>
+      <button style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#7c6fff,#5a4fe8)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", opacity:(!amount)?0.5:1 }}
+        onClick={handleAdd} disabled={!amount}>
         Add Expense
       </button>
     </div>
@@ -689,8 +691,8 @@ function BankTab({ user, onImport }) {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [activeUser, setActiveUser] = useState("Suresh");
-  const [view,       setView]       = useState("home");
+  const [activeUser, setActiveUser] = useState("Anirudh");
+  const [view,       setView]       = useState("expense");
 
   const [expenses, setExpenses] = useState(() => {
     try { return JSON.parse(localStorage.getItem("spendwise_expenses")||"[]"); } catch { return []; }
@@ -708,7 +710,6 @@ export default function App() {
 
   function addExpense(data) {
     setExpenses(p=>[...p, { id:genId(), user:activeUser, source:"manual", ...data }]);
-    setView("home");
   }
   function deleteExpense(id) { setExpenses(p=>p.filter(e=>e.id!==id)); }
 
@@ -741,7 +742,7 @@ export default function App() {
             {USERS.map(u=>(
               <button key={u} onClick={()=>setActiveUser(u)}
                 style={{ padding:"5px 14px", borderRadius:20, border:activeUser===u?"1px solid #7c6fff":"1px solid #2a2a4a", background:activeUser===u?"#7c6fff22":"transparent", color:activeUser===u?"#a99fff":"#666", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
-                {u==="Suresh"?"👤":"👩"} {u}
+                {u==="Anirudh"?"👤":"👩"} {u}
               </button>
             ))}
           </div>
