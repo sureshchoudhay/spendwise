@@ -5,7 +5,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mj
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
   { id:"food",          label:"Food & Dining",    icon:"🍜", color:"#FF6B6B" },
-  { id:"transport",     label:"Transport",         icon:"🚇", color:"#7EBFBA" },
+  { id:"transport",     label:"Transport",         icon:"🚇", color:"#0EA5E9" },
   { id:"shopping",      label:"Shopping",          icon:"🛍️", color:"#45B7D1" },
   { id:"entertainment", label:"Entertainment",     icon:"🎬", color:"#96CEB4" },
   { id:"health",        label:"Health & Medical",  icon:"💊", color:"#FFEAA7" },
@@ -65,9 +65,9 @@ async function categorizeStatement(text) {
 }
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
-const SI = { width:"100%", background:"#211F1D", border:"1px solid #2a2a4a", borderRadius:10, padding:"11px 14px", color:"#F2EDE8", fontSize:14, outline:"none", boxSizing:"border-box" };
-const SL = { fontSize:12, color:"#8A7A6A", marginBottom:6, display:"block" };
-const SC = { background:"#1A1714", borderRadius:16, padding:16, border:"1px solid #1e1e3a", marginBottom:12 };
+const SI = { width:"100%", background:"#F0EFE8", border:"1px solid #2a2a4a", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box" };
+const SL = { fontSize:12, color:"#9CA3AF", marginBottom:6, display:"block" };
+const SC = { background:"#FFFFFF", borderRadius:16, padding:16, border:"1px solid #E8E6DE", marginBottom:12 };
 
 function Tag({ children, color }) {
   return <span style={{ fontSize:10, padding:"1px 7px", borderRadius:20, background:`${color}18`, color, border:`1px solid ${color}33` }}>{children}</span>;
@@ -75,7 +75,7 @@ function Tag({ children, color }) {
 
 function Pill({ active, color, onClick, children }) {
   return (
-    <button onClick={onClick} style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${active?color:"#302C28"}`, background:active?`${color}22`:"transparent", color:active?color:"#6B5E4A", fontSize:12, cursor:"pointer", fontWeight:active?700:400 }}>
+    <button onClick={onClick} style={{ padding:"6px 14px", borderRadius:20, border:`1px solid ${active?color:"#E0DDD4"}`, background:active?`${color}22`:"transparent", color:active?color:"#9CA3AF", fontSize:12, cursor:"pointer", fontWeight:active?700:400 }}>
       {children}
     </button>
   );
@@ -84,10 +84,10 @@ function Pill({ active, color, onClick, children }) {
 function BarRow({ label, value, max, color, icon }) {
   return (
     <div style={{ marginBottom:12 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5, color:"#C4B8A8" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:5, color:"#6B7280" }}>
         <span>{icon} {label}</span><span style={{ color, fontWeight:600 }}>${value.toFixed(2)}</span>
       </div>
-      <div style={{ background:"#211F1D", borderRadius:6, height:6, overflow:"hidden" }}>
+      <div style={{ background:"#F0EFE8", borderRadius:6, height:6, overflow:"hidden" }}>
         <div style={{ width:`${max>0?(value/max)*100:0}%`, background:color, height:"100%", borderRadius:6, transition:"width 0.6s ease" }} />
       </div>
     </div>
@@ -96,13 +96,13 @@ function BarRow({ label, value, max, color, icon }) {
 
 function DonutChart({ data, size=130 }) {
   const total = data.reduce((s,d)=>s+d.value,0);
-  if (!total) return <div style={{ width:size, height:size, borderRadius:"50%", background:"#211F1D", border:"2px solid #2a2a4a", margin:"0 auto" }} />;
+  if (!total) return <div style={{ width:size, height:size, borderRadius:"50%", background:"#F0EFE8", border:"2px solid #2a2a4a", margin:"0 auto" }} />;
   let offset = 0;
   const r=50,cx=60,cy=60,sw=18,circ=2*Math.PI*r;
   return (
     <svg width={size} height={size} viewBox="0 0 120 120">
       {data.map((d,i)=>{ const dash=(d.value/total)*circ; const el=<circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={d.color} strokeWidth={sw} strokeDasharray={`${dash} ${circ-dash}`} strokeDashoffset={-offset*circ/100} />; offset+=(d.value/total)*100; return el; })}
-      <circle cx={cx} cy={cy} r={r-sw/2} fill="#0F0E0D" />
+      <circle cx={cx} cy={cy} r={r-sw/2} fill="#FAFAF7" />
     </svg>
   );
 }
@@ -117,16 +117,16 @@ function EditExpenseModal({ expense, onSave, onClose }) {
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#1A1714", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+      <div style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div style={{ fontSize:17, fontWeight:700 }}>Edit Expense</div>
-          <button onClick={onClose} style={{ background:"none", border:"none", color:"#6B5E4A", fontSize:22, cursor:"pointer" }}>✕</button>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#9CA3AF", fontSize:22, cursor:"pointer" }}>✕</button>
         </div>
         <div style={{ marginBottom:16 }}>
           <span style={SL}>Tag</span>
           <div style={{ display:"flex", gap:10 }}>
             {[["personal","👤","Personal","#45B7D1"],["house","🏠","House","#96CEB4"]].map(([v,ic,lb,col])=>(
-              <button key={v} onClick={()=>setTag(v)} style={{ flex:1, padding:"10px", borderRadius:12, border:tag===v?`2px solid ${col}`:"2px solid #1e1e3a", background:tag===v?`${col}18`:"#211F1D", cursor:"pointer", color:tag===v?col:"#6B5E4A", fontWeight:tag===v?700:400 }}>{ic} {lb}</button>
+              <button key={v} onClick={()=>setTag(v)} style={{ flex:1, padding:"10px", borderRadius:12, border:tag===v?`2px solid ${col}`:"2px solid #E8E6DE", background:tag===v?`${col}18`:"#F0EFE8", cursor:"pointer", color:tag===v?col:"#9CA3AF", fontWeight:tag===v?700:400 }}>{ic} {lb}</button>
             ))}
           </div>
         </div>
@@ -134,9 +134,9 @@ function EditExpenseModal({ expense, onSave, onClose }) {
           <span style={SL}>Category</span>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6 }}>
             {CATEGORIES.map(c=>(
-              <div key={c.id} onClick={()=>setCategory(c.id)} style={{ padding:"8px 4px", borderRadius:10, border:category===c.id?`2px solid ${c.color}`:"2px solid #1e1e3a", background:category===c.id?`${c.color}18`:"#211F1D", cursor:"pointer", textAlign:"center" }}>
+              <div key={c.id} onClick={()=>setCategory(c.id)} style={{ padding:"8px 4px", borderRadius:10, border:category===c.id?`2px solid ${c.color}`:"2px solid #E8E6DE", background:category===c.id?`${c.color}18`:"#F0EFE8", cursor:"pointer", textAlign:"center" }}>
                 <div style={{ fontSize:18 }}>{c.icon}</div>
-                <div style={{ fontSize:8, color:category===c.id?c.color:"#6B5E4A", marginTop:1 }}>{c.label.split(" ")[0]}</div>
+                <div style={{ fontSize:8, color:category===c.id?c.color:"#9CA3AF", marginTop:1 }}>{c.label.split(" ")[0]}</div>
               </div>
             ))}
           </div>
@@ -145,7 +145,7 @@ function EditExpenseModal({ expense, onSave, onClose }) {
         <div style={{ marginBottom:12 }}><label style={SL}>Description</label><input style={SI} type="text" value={desc} onChange={e=>setDesc(e.target.value)} /></div>
         <div style={{ marginBottom:20 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
         <button onClick={()=>onSave({ tag, category, amount:parseFloat(amount)||0, description:desc, date })}
-          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#C4A882,#A08060)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#FF6B35,#FF4757)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
           Save Changes
         </button>
       </div>
@@ -160,18 +160,18 @@ function EditEarningModal({ earning, onSave, onClose }) {
   const [date,   setDate]   = useState(earning.date);
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
-      <div style={{ background:"#1A1714", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:480 }} onClick={e=>e.stopPropagation()}>
+      <div style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0", padding:"24px 20px 40px", width:"100%", maxWidth:480 }} onClick={e=>e.stopPropagation()}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div style={{ fontSize:17, fontWeight:700 }}>Edit Earning</div>
-          <button onClick={onClose} style={{ background:"none", border:"none", color:"#6B5E4A", fontSize:22, cursor:"pointer" }}>✕</button>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#9CA3AF", fontSize:22, cursor:"pointer" }}>✕</button>
         </div>
         <div style={{ marginBottom:16 }}>
           <span style={SL}>Type</span>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
             {EARNING_TYPES.map(t=>(
-              <div key={t.id} onClick={()=>setType(t.id)} style={{ padding:"10px 4px", borderRadius:12, border:type===t.id?"2px solid #4ade80":"2px solid #1e1e3a", background:type===t.id?"#6ECC8A18":"#211F1D", cursor:"pointer", textAlign:"center" }}>
+              <div key={t.id} onClick={()=>setType(t.id)} style={{ padding:"10px 4px", borderRadius:12, border:type===t.id?"2px solid #4ade80":"2px solid #E8E6DE", background:type===t.id?"#22C55E14":"#F0EFE8", cursor:"pointer", textAlign:"center" }}>
                 <div style={{ fontSize:20 }}>{t.icon}</div>
-                <div style={{ fontSize:9, color:type===t.id?"#6ECC8A":"#6B5E4A", marginTop:2 }}>{t.label}</div>
+                <div style={{ fontSize:9, color:type===t.id?"#22C55E":"#9CA3AF", marginTop:2 }}>{t.label}</div>
               </div>
             ))}
           </div>
@@ -180,7 +180,7 @@ function EditEarningModal({ earning, onSave, onClose }) {
         <div style={{ marginBottom:12 }}><label style={SL}>Description</label><input style={SI} type="text" value={desc} onChange={e=>setDesc(e.target.value)} /></div>
         <div style={{ marginBottom:20 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
         <button onClick={()=>onSave({ type, amount:parseFloat(amount)||0, description:desc, date })}
-          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#6ECC8A,#4AAA6A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer" }}>
           Save Changes
         </button>
       </div>
@@ -196,25 +196,25 @@ function ExpRow({ e, onDelete, onEdit }) {
     <div style={{ position:"relative", overflow:"hidden", borderRadius:10, marginBottom:2 }}>
       {/* Action buttons revealed on tap */}
       {open && (
-        <div style={{ position:"absolute", right:0, top:0, bottom:0, display:"flex", alignItems:"center", gap:6, padding:"0 8px", background:"#1A1714", zIndex:1 }}>
-          <button onClick={()=>{ onEdit(e); setOpen(false); }} style={{ background:"#C4A88222", border:"1px solid #7c6fff44", color:"#D4B896", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>✏️ Edit</button>
-          <button onClick={()=>{ onDelete(e.id); setOpen(false); }} style={{ background:"#D9504022", border:"1px solid #ff444444", color:"#E8826A", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>🗑️ Del</button>
-          <button onClick={()=>setOpen(false)} style={{ background:"none", border:"none", color:"#5A5048", fontSize:16, cursor:"pointer" }}>✕</button>
+        <div style={{ position:"absolute", right:0, top:0, bottom:0, display:"flex", alignItems:"center", gap:6, padding:"0 8px", background:"#FFFFFF", zIndex:1 }}>
+          <button onClick={()=>{ onEdit(e); setOpen(false); }} style={{ background:"#FF475711", border:"1px solid #7c6fff44", color:"#FF7A85", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>✏️ Edit</button>
+          <button onClick={()=>{ onDelete(e.id); setOpen(false); }} style={{ background:"#EF444418", border:"1px solid #ff444444", color:"#FF4757", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>🗑️ Del</button>
+          <button onClick={()=>setOpen(false)} style={{ background:"none", border:"none", color:"#6B7280", fontSize:16, cursor:"pointer" }}>✕</button>
         </div>
       )}
-      <div style={{ display:"flex", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #1a1a2e", gap:12, background:"#1A1714", position:"relative", zIndex:0 }}>
+      <div style={{ display:"flex", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #1a1a2e", gap:12, background:"#FFFFFF", position:"relative", zIndex:0 }}>
         <div style={{ width:36, height:36, borderRadius:10, background:`${cat.color}22`, border:`1.5px solid ${cat.color}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{cat.icon}</div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:13, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.description}</div>
           <div style={{ display:"flex", gap:5, marginTop:3, flexWrap:"wrap" }}>
             <Tag color={cat.color}>{cat.label}</Tag>
             <Tag color={e.tag==="house"?"#96CEB4":"#45B7D1"}>{e.tag==="house"?"🏠":"👤"}</Tag>
-            {e.recurring && <Tag color="#C4A030">🔁</Tag>}
-            {e.source==="bank" && <Tag color="#7EBFBA">Bank</Tag>}
+            {e.recurring && <Tag color="#F59E0B">🔁</Tag>}
+            {e.source==="bank" && <Tag color="#0EA5E9">Bank</Tag>}
           </div>
         </div>
-        <div style={{ fontSize:14, fontWeight:700, color:"#E8826A", flexShrink:0 }}>-${e.amount.toFixed(2)}</div>
-        <button onClick={()=>setOpen(o=>!o)} style={{ background:"none", border:"none", color:"#4A4038", cursor:"pointer", fontSize:18, padding:"0 4px", flexShrink:0 }}>⋯</button>
+        <div style={{ fontSize:14, fontWeight:700, color:"#FF4757", flexShrink:0 }}>-${e.amount.toFixed(2)}</div>
+        <button onClick={()=>setOpen(o=>!o)} style={{ background:"none", border:"none", color:"#4B5563", cursor:"pointer", fontSize:18, padding:"0 4px", flexShrink:0 }}>⋯</button>
       </div>
     </div>
   );
@@ -226,7 +226,7 @@ function BudgetCard({ tag, icon, color, spent, budget, onSetBudget, lastMonthAmt
   const [inputVal, setInputVal] = useState(String(budget));
   const pct = Math.min((spent/budget)*100,100);
   const remaining = budget - spent;
-  const bColor = pct>=90?"#D95040":pct>=70?"#C4920A":color;
+  const bColor = pct>=90?"#EF4444":pct>=70?"#F59E0B":color;
   const vs = spent - lastMonthAmt;
   const vsPct = lastMonthAmt>0?(vs/lastMonthAmt)*100:0;
   const prev = new Date(); prev.setMonth(prev.getMonth()-1);
@@ -237,28 +237,28 @@ function BudgetCard({ tag, icon, color, spent, budget, onSetBudget, lastMonthAmt
           <div style={{ width:36, height:36, borderRadius:10, background:`${color}18`, border:`1.5px solid ${color}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>{icon}</div>
           <div>
             <div style={{ fontSize:14, fontWeight:700 }}>{tag==="personal"?"Personal":"House"}</div>
-            <div style={{ fontSize:10, color:"#5A5048" }}>Monthly budget</div>
+            <div style={{ fontSize:10, color:"#6B7280" }}>Monthly budget</div>
           </div>
         </div>
         {editing ? (
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
             <input value={inputVal} onChange={e=>setInputVal(e.target.value)} type="number" autoFocus
-              style={{ width:80, background:"#211F1D", border:`1px solid ${color}66`, borderRadius:8, padding:"5px 8px", color:"#F2EDE8", fontSize:13, outline:"none", textAlign:"right" }} />
+              style={{ width:80, background:"#F0EFE8", border:`1px solid ${color}66`, borderRadius:8, padding:"5px 8px", color:"#1A1A1A", fontSize:13, outline:"none", textAlign:"right" }} />
             <button onClick={()=>{ onSetBudget(parseFloat(inputVal)||budget); setEditing(false); }}
               style={{ padding:"5px 10px", borderRadius:8, border:"none", background:color, color:"#000", fontWeight:700, fontSize:12, cursor:"pointer" }}>✓</button>
-            <button onClick={()=>setEditing(false)} style={{ padding:"5px 8px", borderRadius:8, border:"1px solid #2a2a4a", background:"none", color:"#6B5E4A", fontSize:12, cursor:"pointer" }}>✕</button>
+            <button onClick={()=>setEditing(false)} style={{ padding:"5px 8px", borderRadius:8, border:"1px solid #2a2a4a", background:"none", color:"#9CA3AF", fontSize:12, cursor:"pointer" }}>✕</button>
           </div>
         ) : (
           <div style={{ textAlign:"right" }}>
             <div style={{ fontSize:20, fontWeight:700, color:bColor }}>{pct.toFixed(0)}%</div>
-            <button onClick={()=>{ setInputVal(String(budget)); setEditing(true); }} style={{ background:"none", border:"none", color:"#4A4038", fontSize:10, cursor:"pointer", padding:0 }}>${budget.toLocaleString()} ✏️</button>
+            <button onClick={()=>{ setInputVal(String(budget)); setEditing(true); }} style={{ background:"none", border:"none", color:"#4B5563", fontSize:10, cursor:"pointer", padding:0 }}>${budget.toLocaleString()} ✏️</button>
           </div>
         )}
       </div>
       <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-        {[["Spent","#E8826A","#D9504011","#D9504022",`$${spent.toFixed(0)}`],
+        {[["Spent","#FF4757","#EF444411","#EF444418",`$${spent.toFixed(0)}`],
           [remaining>=0?"Left":"Over",bColor,`${bColor}11`,`${bColor}22`,`$${Math.abs(remaining).toFixed(0)}`],
-          [vs>0?"▲ Last":"▼ Last",vs>0?"#E8826A":"#6ECC8A",vs>0?"#D9504011":"#6ECC8A11",vs>0?"#D9504022":"#6ECC8A22",`${vs>0?"+":"-"}$${Math.abs(vs).toFixed(0)}`],
+          [vs>0?"▲ Last":"▼ Last",vs>0?"#FF4757":"#22C55E",vs>0?"#EF444411":"#22C55E0F",vs>0?"#EF444418":"#22C55E18",`${vs>0?"+":"-"}$${Math.abs(vs).toFixed(0)}`],
         ].map(([lb,col,bg,bd,val])=>(
           <div key={lb} style={{ flex:1, background:bg, borderRadius:10, padding:"8px 4px", border:`1px solid ${bd}`, textAlign:"center" }}>
             <div style={{ fontSize:9, color:col, textTransform:"uppercase", letterSpacing:0.4, marginBottom:3 }}>{lb}</div>
@@ -266,7 +266,7 @@ function BudgetCard({ tag, icon, color, spent, budget, onSetBudget, lastMonthAmt
           </div>
         ))}
       </div>
-      <div style={{ background:"#211F1D", borderRadius:8, height:7, overflow:"hidden", marginBottom:6 }}>
+      <div style={{ background:"#F0EFE8", borderRadius:8, height:7, overflow:"hidden", marginBottom:6 }}>
         <div style={{ width:`${pct}%`, background:`linear-gradient(90deg,${bColor}66,${bColor})`, height:"100%", borderRadius:8, transition:"width 0.8s ease" }} />
       </div>
       {/* Daily limit */}
@@ -274,7 +274,7 @@ function BudgetCard({ tag, icon, color, spent, budget, onSetBudget, lastMonthAmt
         const now = new Date();
         const daysLeft = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate() - now.getDate();
         const dailyLeft = daysLeft > 0 ? remaining/daysLeft : 0;
-        return <div style={{ fontSize:10, color:"#5A5048" }}>💡 ${dailyLeft.toFixed(0)}/day left · {vs>0?"📈":"📉"} {Math.abs(vsPct).toFixed(0)}% vs {MONTHS[prev.getMonth()]} 1–{dayOfMonth}</div>;
+        return <div style={{ fontSize:10, color:"#6B7280" }}>💡 ${dailyLeft.toFixed(0)}/day left · {vs>0?"📈":"📉"} {Math.abs(vsPct).toFixed(0)}% vs {MONTHS[prev.getMonth()]} 1–{dayOfMonth}</div>;
       })()}
     </div>
   );
@@ -327,7 +327,7 @@ function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, s
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div>
             <div style={{ fontSize:20, fontWeight:700 }}>Hey {user} 👋</div>
-            <div style={{ fontSize:12, color:"#5A5048" }}>{MONTHS[now.getMonth()]} {now.getFullYear()}</div>
+            <div style={{ fontSize:12, color:"#6B7280" }}>{MONTHS[now.getMonth()]} {now.getFullYear()}</div>
           </div>
           {streak > 0 && (
             <div style={{ background:"#ff6b2222", border:"1px solid #ff6b2244", borderRadius:12, padding:"6px 12px", textAlign:"center" }}>
@@ -340,16 +340,16 @@ function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, s
 
       {/* Alerts */}
       {alerts.map((a,i)=>(
-        <div key={i} style={{ background:"#D9504011", border:"1px solid #ff444433", borderRadius:12, padding:"10px 14px", marginBottom:8, fontSize:12, color:"#E8826A" }}>{a}</div>
+        <div key={i} style={{ background:"#EF444411", border:"1px solid #ff444433", borderRadius:12, padding:"10px 14px", marginBottom:8, fontSize:12, color:"#FF4757" }}>{a}</div>
       ))}
 
       {/* Earned / Spent / Saved */}
       <div style={{ background:"linear-gradient(135deg,#0d2a1a,#12122a)", borderRadius:16, padding:16, border:"1px solid #4ade8022", marginBottom:12 }}>
-        <div style={{ fontSize:11, color:"#6ECC8A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>💰 This Month</div>
+        <div style={{ fontSize:11, color:"#22C55E", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>💰 This Month</div>
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-          {[["Earned","#6ECC8A","#6ECC8A11","#6ECC8A22",totalEarned===0?"$0":`$${totalEarned.toLocaleString()}`],
-            ["Spent","#E8826A","#D9504011","#D9504022",`$${totalSpent.toFixed(0)}`],
-            ["Saved",saved>=0?"#D4B896":"#E8826A",saved>=0?"#7c6fff11":"#D9504011",saved>=0?"#C4A88222":"#D9504022",`$${Math.abs(saved).toFixed(0)}`],
+          {[["Earned","#22C55E","#22C55E0F","#22C55E18",totalEarned===0?"$0":`$${totalEarned.toLocaleString()}`],
+            ["Spent","#FF4757","#EF444411","#EF444418",`$${totalSpent.toFixed(0)}`],
+            ["Saved",saved>=0?"#FF7A85":"#FF4757",saved>=0?"#7c6fff11":"#EF444411",saved>=0?"#FF475711":"#EF444418",`$${Math.abs(saved).toFixed(0)}`],
           ].map(([lb,col,bg,bd,val])=>(
             <div key={lb} style={{ flex:1, textAlign:"center", padding:"10px 4px", background:bg, borderRadius:12, border:`1px solid ${bd}` }}>
               <div style={{ fontSize:9, color:`${col}aa`, textTransform:"uppercase", letterSpacing:0.5, marginBottom:4 }}>{lb}</div>
@@ -357,42 +357,42 @@ function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, s
             </div>
           ))}
         </div>
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#5A5048", marginBottom:4 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#6B7280", marginBottom:4 }}>
           <span>Savings rate</span>
-          <span style={{ color:savingsPct>=20?"#6ECC8A":"#C4920A", fontWeight:600 }}>{totalEarned>0?`${savingsPct.toFixed(0)}%`:"Add earnings ↑"}</span>
+          <span style={{ color:savingsPct>=20?"#22C55E":"#F59E0B", fontWeight:600 }}>{totalEarned>0?`${savingsPct.toFixed(0)}%`:"Add earnings ↑"}</span>
         </div>
-        <div style={{ background:"#211F1D", borderRadius:6, height:6, overflow:"hidden" }}>
-          <div style={{ width:`${Math.max(0,Math.min(savingsPct,100))}%`, background:"linear-gradient(90deg,#6ECC8A66,#6ECC8A)", height:"100%", borderRadius:6 }} />
+        <div style={{ background:"#F0EFE8", borderRadius:6, height:6, overflow:"hidden" }}>
+          <div style={{ width:`${Math.max(0,Math.min(savingsPct,100))}%`, background:"linear-gradient(90deg,#22C55E55,#22C55E)", height:"100%", borderRadius:6 }} />
         </div>
       </div>
 
       {/* Savings Goal */}
       {(savingsGoal.target>0 || editGoal) && (
-        <div style={{ ...SC, borderColor:"#C4A03033" }}>
+        <div style={{ ...SC, borderColor:"#F59E0B28" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
             <div style={{ fontSize:13, fontWeight:600 }}>🎯 Savings Goal</div>
-            <button onClick={()=>{ setGoalInput(String(savingsGoal.target||0)); setEditGoal(true); }} style={{ background:"none", border:"none", color:"#4A4038", fontSize:11, cursor:"pointer" }}>✏️ edit</button>
+            <button onClick={()=>{ setGoalInput(String(savingsGoal.target||0)); setEditGoal(true); }} style={{ background:"none", border:"none", color:"#4B5563", fontSize:11, cursor:"pointer" }}>✏️ edit</button>
           </div>
           {editGoal ? (
             <div style={{ display:"flex", gap:8, marginBottom:10 }}>
               <input value={goalInput} onChange={e=>setGoalInput(e.target.value)} type="number" placeholder="Target $"
                 style={{ ...SI, flex:1, padding:"8px 10px" }} autoFocus />
               <button onClick={()=>{ setSavingsGoal(g=>({...g,target:parseFloat(goalInput)||0})); setEditGoal(false); }}
-                style={{ padding:"8px 14px", borderRadius:10, border:"none", background:"#C4A030", color:"#000", fontWeight:700, cursor:"pointer" }}>Set</button>
+                style={{ padding:"8px 14px", borderRadius:10, border:"none", background:"#F59E0B", color:"#000", fontWeight:700, cursor:"pointer" }}>Set</button>
             </div>
           ) : null}
-          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#8A7A6A", marginBottom:6 }}>
-            <span>Saved: <span style={{ color:"#6ECC8A", fontWeight:600 }}>${savingsGoal.saved.toFixed(0)}</span></span>
-            <span>Target: <span style={{ color:"#C4A030", fontWeight:600 }}>${savingsGoal.target.toLocaleString()}</span></span>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#9CA3AF", marginBottom:6 }}>
+            <span>Saved: <span style={{ color:"#22C55E", fontWeight:600 }}>${savingsGoal.saved.toFixed(0)}</span></span>
+            <span>Target: <span style={{ color:"#F59E0B", fontWeight:600 }}>${savingsGoal.target.toLocaleString()}</span></span>
           </div>
-          <div style={{ background:"#211F1D", borderRadius:8, height:10, overflow:"hidden", marginBottom:6 }}>
-            <div style={{ width:`${goalProgress}%`, background:"linear-gradient(90deg,#C4A03066,#C4A030)", height:"100%", borderRadius:8, transition:"width 0.8s ease" }} />
+          <div style={{ background:"#F0EFE8", borderRadius:8, height:10, overflow:"hidden", marginBottom:6 }}>
+            <div style={{ width:`${goalProgress}%`, background:"linear-gradient(90deg,#F59E0B55,#F59E0B)", height:"100%", borderRadius:8, transition:"width 0.8s ease" }} />
           </div>
-          <div style={{ fontSize:11, color:"#5A5048" }}>{goalProgress.toFixed(0)}% of goal · ${Math.max(0,savingsGoal.target-savingsGoal.saved).toFixed(0)} to go</div>
+          <div style={{ fontSize:11, color:"#6B7280" }}>{goalProgress.toFixed(0)}% of goal · ${Math.max(0,savingsGoal.target-savingsGoal.saved).toFixed(0)} to go</div>
         </div>
       )}
       {savingsGoal.target===0 && !editGoal && (
-        <button onClick={()=>setEditGoal(true)} style={{ width:"100%", padding:"10px", borderRadius:12, border:"1px dashed #2a2a4a", background:"transparent", color:"#5A5048", fontSize:12, cursor:"pointer", marginBottom:12 }}>
+        <button onClick={()=>setEditGoal(true)} style={{ width:"100%", padding:"10px", borderRadius:12, border:"1px dashed #2a2a4a", background:"transparent", color:"#6B7280", fontSize:12, cursor:"pointer", marginBottom:12 }}>
           🎯 Set a savings goal
         </button>
       )}
@@ -402,9 +402,9 @@ function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, s
 
       {/* Recent */}
       <div style={SC}>
-        <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>Recent</div>
+        <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>Recent</div>
         {recent.length===0
-          ? <div style={{ textAlign:"center", color:"#4A4038", padding:"16px 0", fontSize:13 }}>No expenses yet. Tap ➖ to add!</div>
+          ? <div style={{ textAlign:"center", color:"#4B5563", padding:"16px 0", fontSize:13 }}>No expenses yet. Tap ➖ to add!</div>
           : recent.map(e=><ExpRow key={e.id} e={e} onDelete={()=>{}} onEdit={()=>{}} />)
         }
       </div>
@@ -452,9 +452,9 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
       {favourites.length>0 && (
         <div style={{ marginBottom:16 }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1 }}>⭐ Quick Add</div>
+            <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1 }}>⭐ Quick Add</div>
             <button onClick={()=>setEditingFavs(e=>!e)}
-              style={{ background:"none", border:"none", color:editingFavs?"#6ECC8A":"#5A5048", fontSize:11, cursor:"pointer", padding:0 }}>
+              style={{ background:"none", border:"none", color:editingFavs?"#22C55E":"#6B7280", fontSize:11, cursor:"pointer", padding:0 }}>
               {editingFavs?"✓ Done":"✏️ Edit"}
             </button>
           </div>
@@ -467,11 +467,11 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
                     style={{ display:"block", background:`${cat.color}11`, border:`1px solid ${editingFavs?"#ff444466":`${cat.color}33`}`, borderRadius:12, padding:"8px 12px", cursor:editingFavs?"default":"pointer", textAlign:"center", minWidth:72, opacity:editingFavs?0.65:1 }}>
                     <div style={{ fontSize:20 }}>{cat.icon}</div>
                     <div style={{ fontSize:10, color:cat.color, marginTop:2, fontWeight:600 }}>${f.amount}</div>
-                    <div style={{ fontSize:9, color:"#6B5E4A", marginTop:1 }}>{f.description.slice(0,9)}</div>
+                    <div style={{ fontSize:9, color:"#9CA3AF", marginTop:1 }}>{f.description.slice(0,9)}</div>
                   </button>
                   {editingFavs && (
                     <button onClick={()=>onToggleFav(f)}
-                      style={{ position:"absolute", top:-7, right:-7, width:22, height:22, borderRadius:"50%", background:"#D95040", border:"2px solid #0a0a16", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, padding:0, lineHeight:1 }}>
+                      style={{ position:"absolute", top:-7, right:-7, width:22, height:22, borderRadius:"50%", background:"#EF4444", border:"2px solid #0a0a16", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, padding:0, lineHeight:1 }}>
                       ×
                     </button>
                   )}
@@ -487,10 +487,10 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
         <span style={SL}>This is for...</span>
         <div style={{ display:"flex", gap:10 }}>
           {[["personal","👤","Personal","Just for me","#45B7D1"],["house","🏠","House","Household","#96CEB4"]].map(([v,ic,lb,sub,col])=>(
-            <button key={v} onClick={()=>setTag(v)} style={{ flex:1, padding:"12px", borderRadius:14, border:tag===v?`2px solid ${col}`:"2px solid #1e1e3a", background:tag===v?`${col}18`:"#1A1714", cursor:"pointer" }}>
+            <button key={v} onClick={()=>setTag(v)} style={{ flex:1, padding:"12px", borderRadius:14, border:tag===v?`2px solid ${col}`:"2px solid #E8E6DE", background:tag===v?`${col}18`:"#FFFFFF", cursor:"pointer" }}>
               <div style={{ fontSize:22, marginBottom:3 }}>{ic}</div>
-              <div style={{ fontSize:13, fontWeight:600, color:tag===v?col:"#6B5E4A" }}>{lb}</div>
-              <div style={{ fontSize:10, color:"#5A5048" }}>{sub}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:tag===v?col:"#9CA3AF" }}>{lb}</div>
+              <div style={{ fontSize:10, color:"#6B7280" }}>{sub}</div>
             </button>
           ))}
         </div>
@@ -501,9 +501,9 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
         <span style={SL}>Category</span>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
           {CATEGORIES.map(c=>(
-            <div key={c.id} onClick={()=>setCategory(c.id)} style={{ padding:"9px 4px", borderRadius:12, border:category===c.id?`2px solid ${c.color}`:"2px solid #1e1e3a", background:category===c.id?`${c.color}18`:"#1A1714", cursor:"pointer", textAlign:"center" }}>
+            <div key={c.id} onClick={()=>setCategory(c.id)} style={{ padding:"9px 4px", borderRadius:12, border:category===c.id?`2px solid ${c.color}`:"2px solid #E8E6DE", background:category===c.id?`${c.color}18`:"#FFFFFF", cursor:"pointer", textAlign:"center" }}>
               <div style={{ fontSize:20 }}>{c.icon}</div>
-              <div style={{ fontSize:9, color:category===c.id?c.color:"#6B5E4A", marginTop:2 }}>{c.label.split(" ")[0]}</div>
+              <div style={{ fontSize:9, color:category===c.id?c.color:"#9CA3AF", marginTop:2 }}>{c.label.split(" ")[0]}</div>
             </div>
           ))}
         </div>
@@ -516,27 +516,27 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
       {/* Recurring + Favourite */}
       <div style={{ display:"flex", gap:8, marginBottom:16 }}>
         <button onClick={()=>setRecurring(r=>!r)}
-          style={{ flex:1, padding:"10px", borderRadius:12, border:recurring?"1px solid #FFD70066":"1px solid #2a2a4a", background:recurring?"#C4A03011":"transparent", color:recurring?"#C4A030":"#6B5E4A", fontSize:12, cursor:"pointer" }}>
+          style={{ flex:1, padding:"10px", borderRadius:12, border:recurring?"1px solid #FFD70066":"1px solid #2a2a4a", background:recurring?"#F59E0B11":"transparent", color:recurring?"#F59E0B":"#9CA3AF", fontSize:12, cursor:"pointer" }}>
           🔁 {recurring?"Recurring":"Set Recurring"}
         </button>
         <button onClick={()=>{ if(amount) onToggleFav({ tag, category, amount:parseFloat(amount), description:desc.trim()||getCatInfo(category).label }); }}
-          style={{ flex:1, padding:"10px", borderRadius:12, border:"1px solid #2a2a4a", background:"transparent", color:"#6B5E4A", fontSize:12, cursor:"pointer", opacity:amount?1:0.4 }}>
+          style={{ flex:1, padding:"10px", borderRadius:12, border:"1px solid #2a2a4a", background:"transparent", color:"#9CA3AF", fontSize:12, cursor:"pointer", opacity:amount?1:0.4 }}>
           ⭐ Save as Fav
         </button>
       </div>
 
       <button onClick={handleAdd} disabled={!amount}
-        style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#C4A882,#A08060)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", opacity:amount?1:0.5, marginBottom:24 }}>
+        style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#FF6B35,#FF4757)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", opacity:amount?1:0.5, marginBottom:24 }}>
         Add Expense
       </button>
 
       {/* Search + transaction list */}
-      <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>🔍 All Transactions</div>
+      <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>🔍 All Transactions</div>
       <input style={{ ...SI, marginBottom:10 }} placeholder="Search by name or category..." value={search} onChange={e=>setSearch(e.target.value)} />
 
       <div style={SC}>
         {filtered.length===0
-          ? <div style={{ textAlign:"center", color:"#4A4038", padding:"16px 0", fontSize:13 }}>No transactions found.</div>
+          ? <div style={{ textAlign:"center", color:"#4B5563", padding:"16px 0", fontSize:13 }}>No transactions found.</div>
           : filtered.map(e=><ExpRow key={e.id} e={e} onDelete={onDelete} onEdit={setEditTarget} />)
         }
       </div>
@@ -569,21 +569,21 @@ function AddEarningTab({ user, earnings, onAdd, onDelete, onEdit }) {
   return (
     <div>
       <div style={{ fontSize:18, fontWeight:700, marginBottom:4 }}>Add Earning</div>
-      <div style={{ fontSize:12, color:"#5A5048", marginBottom:16 }}>This month: <span style={{ color:"#6ECC8A", fontWeight:600 }}>${totalEarned.toLocaleString()}</span></div>
+      <div style={{ fontSize:12, color:"#6B7280", marginBottom:16 }}>This month: <span style={{ color:"#22C55E", fontWeight:600 }}>${totalEarned.toLocaleString()}</span></div>
 
       {thisMonthEarn.length>0 && (
         <div style={{ ...SC, marginBottom:16 }}>
-          <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:10 }}>This Month's Earnings</div>
+          <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:10 }}>This Month's Earnings</div>
           {thisMonthEarn.map(e=>(
             <div key={e.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid #1a1a2e" }}>
               <div>
                 <div style={{ fontSize:13, fontWeight:500 }}>{e.description}</div>
-                <div style={{ fontSize:11, color:"#5A5048", marginTop:2 }}>{e.date} · {e.type}</div>
+                <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>{e.date} · {e.type}</div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <div style={{ fontSize:14, fontWeight:700, color:"#6ECC8A" }}>+${e.amount.toLocaleString()}</div>
-                <button onClick={()=>setEditTarget(e)} style={{ background:"none", border:"none", color:"#5A5048", cursor:"pointer", fontSize:14 }}>✏️</button>
-                <button onClick={()=>onDelete(e.id)} style={{ background:"none", border:"none", color:"#4A4038", cursor:"pointer", fontSize:14 }}>🗑️</button>
+                <div style={{ fontSize:14, fontWeight:700, color:"#22C55E" }}>+${e.amount.toLocaleString()}</div>
+                <button onClick={()=>setEditTarget(e)} style={{ background:"none", border:"none", color:"#6B7280", cursor:"pointer", fontSize:14 }}>✏️</button>
+                <button onClick={()=>onDelete(e.id)} style={{ background:"none", border:"none", color:"#4B5563", cursor:"pointer", fontSize:14 }}>🗑️</button>
               </div>
             </div>
           ))}
@@ -594,9 +594,9 @@ function AddEarningTab({ user, earnings, onAdd, onDelete, onEdit }) {
         <span style={SL}>Type</span>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
           {EARNING_TYPES.map(t=>(
-            <div key={t.id} onClick={()=>setType(t.id)} style={{ padding:"10px 4px", borderRadius:12, border:type===t.id?"2px solid #4ade80":"2px solid #1e1e3a", background:type===t.id?"#6ECC8A18":"#1A1714", cursor:"pointer", textAlign:"center" }}>
+            <div key={t.id} onClick={()=>setType(t.id)} style={{ padding:"10px 4px", borderRadius:12, border:type===t.id?"2px solid #4ade80":"2px solid #E8E6DE", background:type===t.id?"#22C55E14":"#FFFFFF", cursor:"pointer", textAlign:"center" }}>
               <div style={{ fontSize:20 }}>{t.icon}</div>
-              <div style={{ fontSize:9, color:type===t.id?"#6ECC8A":"#6B5E4A", marginTop:2 }}>{t.label}</div>
+              <div style={{ fontSize:9, color:type===t.id?"#22C55E":"#9CA3AF", marginTop:2 }}>{t.label}</div>
             </div>
           ))}
         </div>
@@ -605,7 +605,7 @@ function AddEarningTab({ user, earnings, onAdd, onDelete, onEdit }) {
       <div style={{ marginBottom:12 }}><label style={SL}>Description (optional)</label><input style={SI} type="text" placeholder={EARNING_TYPES.find(t=>t.id===type)?.label} value={desc} onChange={e=>setDesc(e.target.value)} /></div>
       <div style={{ marginBottom:20 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
       <button onClick={handleAdd} disabled={!amount}
-        style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#6ECC8A,#4AAA6A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer", opacity:amount?1:0.5 }}>
+        style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer", opacity:amount?1:0.5 }}>
         Add Earning
       </button>
       {editTarget && <EditEarningModal earning={editTarget} onSave={data=>{ onEdit(editTarget.id, data); setEditTarget(null); }} onClose={()=>setEditTarget(null)} />}
@@ -647,7 +647,7 @@ function StatsTab({ user, expenses, earnings }) {
   const trendMax = Math.max(...trendData.map(d=>d.personal+d.house), 1);
 
   // Monthly report card
-  const grade = (() => { if (thisSpent===0) return null; const pct=(thisSpent/(sumAmt(userEarn.filter(e=>getMonthKey(e.date)===analyticsPeriod))))*100; if (pct<50) return {g:"A",c:"#6ECC8A",t:"Excellent!"}; if (pct<70) return {g:"B",c:"#C4A030",t:"Good job"}; if (pct<90) return {g:"C",c:"#C4920A",t:"Watch out"}; return {g:"D",c:"#E8826A",t:"Over budget"}; })();
+  const grade = (() => { if (thisSpent===0) return null; const pct=(thisSpent/(sumAmt(userEarn.filter(e=>getMonthKey(e.date)===analyticsPeriod))))*100; if (pct<50) return {g:"A",c:"#22C55E",t:"Excellent!"}; if (pct<70) return {g:"B",c:"#F59E0B",t:"Good job"}; if (pct<90) return {g:"C",c:"#F59E0B",t:"Watch out"}; return {g:"D",c:"#FF4757",t:"Over budget"}; })();
 
   // Export CSV
   function exportCSV() {
@@ -664,9 +664,9 @@ function StatsTab({ user, expenses, earnings }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
         <div style={{ fontSize:18, fontWeight:700 }}>Analytics</div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <button onClick={exportCSV} style={{ background:"#21201C", border:"1px solid #2a2a5a", borderRadius:10, padding:"6px 12px", color:"#D4B896", fontSize:11, cursor:"pointer" }}>📤 CSV</button>
+          <button onClick={exportCSV} style={{ background:"#F0EFE8", border:"1px solid #2a2a5a", borderRadius:10, padding:"6px 12px", color:"#FF7A85", fontSize:11, cursor:"pointer" }}>📤 CSV</button>
           <select value={analyticsPeriod} onChange={e=>setAnalyticsPeriod(e.target.value)}
-            style={{ background:"#211F1D", border:"1px solid #2a2a4a", borderRadius:10, padding:"6px 10px", color:"#F2EDE8", fontSize:12, outline:"none" }}>
+            style={{ background:"#F0EFE8", border:"1px solid #2a2a4a", borderRadius:10, padding:"6px 10px", color:"#1A1A1A", fontSize:12, outline:"none" }}>
             {available.length===0 && <option value={thisMonthKey}>{MonthLabel(thisMonthKey)}</option>}
             {available.map(m=><option key={m} value={m}>{MonthLabel(m)}</option>)}
           </select>
@@ -675,8 +675,8 @@ function StatsTab({ user, expenses, earnings }) {
 
       {/* Tag filter */}
       <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-        {[["all","All 📊","#C4A882"],["personal","Personal 👤","#45B7D1"],["house","House 🏠","#96CEB4"]].map(([v,l,c])=>(
-          <button key={v} onClick={()=>setTagFilter(v)} style={{ flex:1, padding:"9px 4px", borderRadius:10, border:tagFilter===v?`1.5px solid ${c}`:"1.5px solid #2a2a4a", background:tagFilter===v?`${c}18`:"#1A1714", color:tagFilter===v?c:"#6B5E4A", fontSize:11, fontWeight:tagFilter===v?700:400, cursor:"pointer" }}>{l}</button>
+        {[["all","All 📊","#FF4757"],["personal","Personal 👤","#45B7D1"],["house","House 🏠","#96CEB4"]].map(([v,l,c])=>(
+          <button key={v} onClick={()=>setTagFilter(v)} style={{ flex:1, padding:"9px 4px", borderRadius:10, border:tagFilter===v?`1.5px solid ${c}`:"1.5px solid #2a2a4a", background:tagFilter===v?`${c}18`:"#FFFFFF", color:tagFilter===v?c:"#9CA3AF", fontSize:11, fontWeight:tagFilter===v?700:400, cursor:"pointer" }}>{l}</button>
         ))}
       </div>
 
@@ -686,15 +686,15 @@ function StatsTab({ user, expenses, earnings }) {
           <div style={{ width:52, height:52, borderRadius:14, background:`${grade.c}22`, border:`2px solid ${grade.c}66`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, fontWeight:900, color:grade.c, flexShrink:0 }}>{grade.g}</div>
           <div>
             <div style={{ fontSize:14, fontWeight:700 }}>{grade.t}</div>
-            <div style={{ fontSize:11, color:"#5A5048", marginTop:2 }}>Monthly spending grade</div>
-            {byCat[0] && <div style={{ fontSize:11, color:"#8A7A6A", marginTop:4 }}>Biggest: {byCat[0].icon} {byCat[0].label} ${byCat[0].value.toFixed(0)}</div>}
+            <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>Monthly spending grade</div>
+            {byCat[0] && <div style={{ fontSize:11, color:"#9CA3AF", marginTop:4 }}>Biggest: {byCat[0].icon} {byCat[0].label} ${byCat[0].value.toFixed(0)}</div>}
           </div>
         </div>
       )}
 
       {/* 6-month trend chart */}
       <div style={SC}>
-        <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:14 }}>📊 6-Month Trend</div>
+        <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:14 }}>📊 6-Month Trend</div>
         <div style={{ display:"flex", gap:6, alignItems:"flex-end", height:80 }}>
           {trendData.map((d,i)=>{
             const total = d.personal+d.house;
@@ -708,27 +708,27 @@ function StatsTab({ user, expenses, earnings }) {
                   <div style={{ width:"100%", height:hH, background:"#96CEB466", borderRadius:"4px 4px 0 0", minHeight:hH>0?2:0 }} />
                   <div style={{ width:"100%", height:pH, background:"#45B7D166", minHeight:pH>0?2:0 }} />
                 </div>
-                <div style={{ fontSize:9, color:isNow?"#D4B896":"#5A5048", fontWeight:isNow?700:400 }}>{d.label}</div>
+                <div style={{ fontSize:9, color:isNow?"#FF7A85":"#6B7280", fontWeight:isNow?700:400 }}>{d.label}</div>
               </div>
             );
           })}
         </div>
         <div style={{ display:"flex", gap:12, marginTop:8 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#8A7A6A" }}><div style={{ width:10, height:10, background:"#45B7D166", borderRadius:2 }}/>Personal</div>
-          <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#8A7A6A" }}><div style={{ width:10, height:10, background:"#96CEB466", borderRadius:2 }}/>House</div>
+          <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#9CA3AF" }}><div style={{ width:10, height:10, background:"#45B7D166", borderRadius:2 }}/>Personal</div>
+          <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, color:"#9CA3AF" }}><div style={{ width:10, height:10, background:"#96CEB466", borderRadius:2 }}/>House</div>
         </div>
       </div>
 
       {filtered.length===0 ? (
-        <div style={{ textAlign:"center", color:"#4A4038", padding:"32px 0", fontSize:13 }}>No expenses for this selection.</div>
+        <div style={{ textAlign:"center", color:"#4B5563", padding:"32px 0", fontSize:13 }}>No expenses for this selection.</div>
       ) : (
         <>
           {/* Total + donut */}
           <div style={{ ...SC, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Total Spent</div>
-              <div style={{ fontSize:30, fontWeight:700, color:"#E8826A" }}>${thisSpent.toFixed(2)}</div>
-              <div style={{ fontSize:12, color:"#5A5048", marginTop:4 }}>{filtered.length} transactions</div>
+              <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Total Spent</div>
+              <div style={{ fontSize:30, fontWeight:700, color:"#FF4757" }}>${thisSpent.toFixed(2)}</div>
+              <div style={{ fontSize:12, color:"#6B7280", marginTop:4 }}>{filtered.length} transactions</div>
             </div>
             <DonutChart data={byCat.map(c=>({color:c.color,value:c.value}))} />
           </div>
@@ -736,12 +736,12 @@ function StatsTab({ user, expenses, earnings }) {
           {/* Same-period comparison */}
           {analyticsPeriod===thisMonthKey && prevSpent>0 && (
             <div style={SC}>
-              <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>
+              <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>
                 {MONTHS[now.getMonth()]} 1–{dayOfMonth} vs {MONTHS[prevDate.getMonth()]} 1–{dayOfMonth}
               </div>
               <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-                {[["This month","#C4A882","#7c6fff11","#7c6fff33",`$${thisSpent.toFixed(0)}`],
-                  ["Last month","#7EBFBA","#7EBFBA11","#7EBFBA33",`$${prevSpent.toFixed(0)}`],
+                {[["This month","#FF4757","#7c6fff11","#7c6fff33",`$${thisSpent.toFixed(0)}`],
+                  ["Last month","#0EA5E9","#0EA5E911","#0EA5E933",`$${prevSpent.toFixed(0)}`],
                 ].map(([lb,col,bg,bd,val])=>(
                   <div key={lb} style={{ flex:1, background:bg, borderRadius:12, padding:"12px", border:`1px solid ${bd}` }}>
                     <div style={{ fontSize:10, color:col, marginBottom:4 }}>{lb}</div>
@@ -749,23 +749,23 @@ function StatsTab({ user, expenses, earnings }) {
                   </div>
                 ))}
               </div>
-              <div style={{ padding:"10px 14px", background:vs>0?"#D9504011":"#6ECC8A11", borderRadius:12, border:`1px solid ${vs>0?"#D9504033":"#6ECC8A33"}`, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ padding:"10px 14px", background:vs>0?"#EF444411":"#22C55E0F", borderRadius:12, border:`1px solid ${vs>0?"#EF444428":"#22C55E28"}`, display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ fontSize:18 }}>{vs>0?"📈":"📉"}</span>
-                <span style={{ fontSize:13, fontWeight:700, color:vs>0?"#E8826A":"#6ECC8A" }}>{vs>0?"+":"-"}${Math.abs(vs).toFixed(0)}</span>
-                <span style={{ fontSize:11, color:"#6B5E4A" }}>{Math.abs(vsPct).toFixed(0)}% {vs>0?"more":"less"} than same period last month</span>
+                <span style={{ fontSize:13, fontWeight:700, color:vs>0?"#FF4757":"#22C55E" }}>{vs>0?"+":"-"}${Math.abs(vs).toFixed(0)}</span>
+                <span style={{ fontSize:11, color:"#9CA3AF" }}>{Math.abs(vsPct).toFixed(0)}% {vs>0?"more":"less"} than same period last month</span>
               </div>
             </div>
           )}
 
           {/* Category bars */}
           <div style={SC}>
-            <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:14 }}>By Category</div>
+            <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:14 }}>By Category</div>
             {byCat.map(c=><BarRow key={c.id} label={c.label} value={c.value} max={byCat[0].value} color={c.color} icon={c.icon} />)}
           </div>
 
           {/* All transactions */}
           <div style={SC}>
-            <div style={{ fontSize:11, color:"#8A7A6A", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:10 }}>All Transactions</div>
+            <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:10 }}>All Transactions</div>
             {[...filtered].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=><ExpRow key={e.id} e={e} onDelete={()=>{}} onEdit={()=>{}} />)}
           </div>
         </>
@@ -816,66 +816,66 @@ function BankTab({ onImport }) {
   return (
     <div>
       <div style={{ fontSize:18, fontWeight:700, marginBottom:6 }}>Bank Import</div>
-      <div style={{ fontSize:12, color:"#6B5E4A", marginBottom:14 }}>Upload a PDF, CSV, or TXT bank statement.</div>
+      <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:14 }}>Upload a PDF, CSV, or TXT bank statement.</div>
       <div style={SC}>
         <input ref={fileRef} type="file" accept=".pdf,.csv,.txt" style={{ display:"none" }} onChange={handleFile} />
         <button onClick={()=>fileRef.current.click()} disabled={pdfLoading}
-          style={{ width:"100%", padding:13, borderRadius:12, border:"2px dashed #5a4fe8", background:"#21201C", color:"#D4B896", fontSize:13, fontWeight:600, cursor:"pointer", marginBottom:10, opacity:pdfLoading?0.6:1 }}>
+          style={{ width:"100%", padding:13, borderRadius:12, border:"2px dashed #5a4fe8", background:"#F0EFE8", color:"#FF7A85", fontSize:13, fontWeight:600, cursor:"pointer", marginBottom:10, opacity:pdfLoading?0.6:1 }}>
           {pdfLoading?"⏳ Reading PDF...":"📄 Upload Statement (PDF / CSV / TXT)"}
         </button>
         {pdfInfo && !pdfLoading && (
-          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#1A1510", border:"1px solid #1a6a3a", borderRadius:10, marginBottom:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#EDF5EE", border:"1px solid #1a6a3a", borderRadius:10, marginBottom:10 }}>
             <span style={{ fontSize:20 }}>📄</span>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, fontWeight:600, color:"#6ECC8A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{pdfInfo.name}</div>
-              <div style={{ fontSize:11, color:"#5A5048" }}>{pdfInfo.pages?`${pdfInfo.pages} pages · `:""}{bankText.length.toLocaleString()} chars ✓</div>
+              <div style={{ fontSize:12, fontWeight:600, color:"#22C55E", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{pdfInfo.name}</div>
+              <div style={{ fontSize:11, color:"#6B7280" }}>{pdfInfo.pages?`${pdfInfo.pages} pages · `:""}{bankText.length.toLocaleString()} chars ✓</div>
             </div>
-            <button onClick={()=>{ setBankText(""); setPdfInfo(null); setBankResults([]); setBankError(""); }} style={{ background:"none", border:"none", color:"#5A5048", cursor:"pointer", fontSize:18 }}>✕</button>
+            <button onClick={()=>{ setBankText(""); setPdfInfo(null); setBankResults([]); setBankError(""); }} style={{ background:"none", border:"none", color:"#6B7280", cursor:"pointer", fontSize:18 }}>✕</button>
           </div>
         )}
         {!pdfInfo && !pdfLoading && (
           <textarea value={bankText} onChange={e=>{ setBankText(e.target.value); setBankImported(false); setBankResults([]); setBankError(""); }}
             placeholder={"Paste statement text...\n2024-03-05  GRAB FOOD  $24.50"}
-            style={{ width:"100%", background:"#211F1D", border:"1px solid #2a2a4a", borderRadius:10, padding:"12px 14px", color:"#F2EDE8", fontSize:13, outline:"none", resize:"vertical", minHeight:90, fontFamily:"monospace", boxSizing:"border-box", marginBottom:10 }} />
+            style={{ width:"100%", background:"#F0EFE8", border:"1px solid #2a2a4a", borderRadius:10, padding:"12px 14px", color:"#1A1A1A", fontSize:13, outline:"none", resize:"vertical", minHeight:90, fontFamily:"monospace", boxSizing:"border-box", marginBottom:10 }} />
         )}
-        {bankError && <div style={{ color:"#E8826A", fontSize:12, marginBottom:10, padding:"10px 12px", background:"#D9504014", borderRadius:8 }}>⚠️ {bankError}</div>}
+        {bankError && <div style={{ color:"#FF4757", fontSize:12, marginBottom:10, padding:"10px 12px", background:"#EF444412", borderRadius:8 }}>⚠️ {bankError}</div>}
         <div style={{ marginBottom:10 }}>
-          <div style={{ fontSize:11, color:"#8A7A6A", marginBottom:6 }}>Tag imports as:</div>
+          <div style={{ fontSize:11, color:"#9CA3AF", marginBottom:6 }}>Tag imports as:</div>
           <div style={{ display:"flex", gap:8 }}>
             {[["personal","👤 Personal","#45B7D1"],["house","🏠 House","#96CEB4"]].map(([v,l,c])=>(
-              <button key={v} onClick={()=>setDefaultTag(v)} style={{ flex:1, padding:"8px", borderRadius:10, border:defaultTag===v?`1.5px solid ${c}`:"1.5px solid #2a2a4a", background:defaultTag===v?`${c}18`:"transparent", color:defaultTag===v?c:"#6B5E4A", fontSize:12, fontWeight:defaultTag===v?700:400, cursor:"pointer" }}>{l}</button>
+              <button key={v} onClick={()=>setDefaultTag(v)} style={{ flex:1, padding:"8px", borderRadius:10, border:defaultTag===v?`1.5px solid ${c}`:"1.5px solid #2a2a4a", background:defaultTag===v?`${c}18`:"transparent", color:defaultTag===v?c:"#9CA3AF", fontSize:12, fontWeight:defaultTag===v?700:400, cursor:"pointer" }}>{l}</button>
             ))}
           </div>
         </div>
         <button onClick={handleParse} disabled={bankParsing||!bankText.trim()||pdfLoading}
-          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#C4A882,#A08060)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", opacity:(bankParsing||!bankText.trim()||pdfLoading)?0.45:1 }}>
+          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#FF6B35,#FF4757)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", opacity:(bankParsing||!bankText.trim()||pdfLoading)?0.45:1 }}>
           {bankParsing ? <span style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><span style={spin}/>Analyzing...</span> : "🤖 Categorize with AI"}
         </button>
       </div>
 
       {bankResults.length>0 && !bankImported && (
         <div style={SC}>
-          <div style={{ fontSize:12, color:"#8A7A6A", fontWeight:600, marginBottom:4 }}>FOUND {bankResults.length} TRANSACTIONS</div>
-          <div style={{ fontSize:11, color:"#5A5048", marginBottom:12 }}>Total: <span style={{ color:"#E8826A", fontWeight:600 }}>${bankResults.reduce((s,r)=>s+parseFloat(r.amount||0),0).toFixed(2)}</span></div>
+          <div style={{ fontSize:12, color:"#9CA3AF", fontWeight:600, marginBottom:4 }}>FOUND {bankResults.length} TRANSACTIONS</div>
+          <div style={{ fontSize:11, color:"#6B7280", marginBottom:12 }}>Total: <span style={{ color:"#FF4757", fontWeight:600 }}>${bankResults.reduce((s,r)=>s+parseFloat(r.amount||0),0).toFixed(2)}</span></div>
           {bankResults.map((r,i)=>{ const cat=getCatInfo(r.category); return (
             <div key={i} style={{ display:"flex", alignItems:"center", padding:"9px 0", borderBottom:"1px solid #1a1a2e", gap:12 }}>
               <div style={{ width:34, height:34, borderRadius:9, background:`${cat.color}22`, border:`1.5px solid ${cat.color}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>{cat.icon}</div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.description}</div>
-                <div style={{ fontSize:11, color:"#5A5048", marginTop:2 }}>{r.date} · <span style={{ color:cat.color }}>{cat.label}</span></div>
+                <div style={{ fontSize:11, color:"#6B7280", marginTop:2 }}>{r.date} · <span style={{ color:cat.color }}>{cat.label}</span></div>
               </div>
-              <div style={{ fontSize:13, fontWeight:700, color:"#E8826A" }}>-${parseFloat(r.amount).toFixed(2)}</div>
+              <div style={{ fontSize:13, fontWeight:700, color:"#FF4757" }}>-${parseFloat(r.amount).toFixed(2)}</div>
             </div>
           ); })}
-          <button onClick={handleImport} style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#6ECC8A,#4AAA6A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer", marginTop:14 }}>
+          <button onClick={handleImport} style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer", marginTop:14 }}>
             ✅ Import All {bankResults.length} Transactions
           </button>
         </div>
       )}
       {bankImported && (
-        <div style={{ ...SC, background:"#181510", borderColor:"#1a5a3a", textAlign:"center", padding:28 }}>
+        <div style={{ ...SC, background:"#EDF5EE", borderColor:"#1a5a3a", textAlign:"center", padding:28 }}>
           <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
-          <div style={{ color:"#6ECC8A", fontWeight:700, fontSize:16 }}>Imported Successfully!</div>
+          <div style={{ color:"#22C55E", fontWeight:700, fontSize:16 }}>Imported Successfully!</div>
         </div>
       )}
     </div>
@@ -960,17 +960,17 @@ export default function App() {
   ];
 
   return (
-    <div style={{ background:"#0F0E0D", minHeight:"100vh", color:"#F2EDE8", fontFamily:"'Sora','DM Sans','Segoe UI',sans-serif", maxWidth:480, margin:"0 auto" }}>
+    <div style={{ background:"#FAFAF7", minHeight:"100vh", color:"#1A1A1A", fontFamily:"'Sora','DM Sans','Segoe UI',sans-serif", maxWidth:480, margin:"0 auto" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} button{font-family:inherit} select{font-family:inherit}`}</style>
 
       {/* Header */}
-      <div style={{ padding:"14px 20px 10px", borderBottom:"1px solid #1e1e3a", background:"rgba(15,14,13,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 }}>
+      <div style={{ padding:"14px 20px 10px", borderBottom:"1px solid #E8E6DE", background:"rgba(250,250,247,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ fontSize:17, fontWeight:700 }}>💸 Spendwise</div>
           <div style={{ display:"flex", gap:6 }}>
             {USERS.map(u=>(
               <button key={u} onClick={()=>setActiveUser(u)}
-                style={{ padding:"5px 12px", borderRadius:20, border:activeUser===u?"1px solid #C4A88266":"1px solid #2a2a4a", background:activeUser===u?"#C4A88222":"transparent", color:activeUser===u?"#D4B896":"#6B5E4A", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
+                style={{ padding:"5px 12px", borderRadius:20, border:activeUser===u?"1px solid #FF475766":"1px solid #2a2a4a", background:activeUser===u?"#FF475711":"transparent", color:activeUser===u?"#FF7A85":"#9CA3AF", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
                 {u==="Suresh"?"👤":"👩"} {u}
               </button>
             ))}
@@ -988,10 +988,10 @@ export default function App() {
       </div>
 
       {/* Bottom nav */}
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"rgba(15,14,13,0.98)", backdropFilter:"blur(16px)", borderTop:"1px solid #1e1e3a", padding:"10px 12px 28px", display:"flex", gap:4 }}>
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"rgba(250,250,247,0.98)", backdropFilter:"blur(16px)", borderTop:"1px solid #E8E6DE", boxShadow:"0 -4px 20px rgba(0,0,0,0.06)", padding:"10px 12px 28px", display:"flex", gap:4 }}>
         {tabs.map(t=>{ const active=view===t.id; return (
           <button key={t.id} onClick={()=>setView(t.id)}
-            style={{ flex:1, padding:"8px 2px", borderRadius:12, border:"none", background:active?"#C4A882":"transparent", color:active?"#fff":"#5A5048", fontSize:10, fontWeight:active?700:400, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+            style={{ flex:1, padding:"8px 2px", borderRadius:12, border:"none", background:active?"#FF4757":"transparent", color:active?"#fff":"#6B7280", fontSize:10, fontWeight:active?700:400, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
             <span style={{ fontSize:17 }}>{t.icon}</span>{t.label}
           </button>
         ); })}
