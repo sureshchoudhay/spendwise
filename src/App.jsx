@@ -21,7 +21,7 @@ const EARNING_TYPES = [
   { id:"bonus",     label:"Bonus",     icon:"🎁" },
   { id:"other",     label:"Other",     icon:"💰" },
 ];
-const USERS  = ["Suresh", "Bella"];
+const USERS  = ["Anirudh", "Wifey"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -884,7 +884,7 @@ function BankTab({ onImport }) {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [activeUser, setActiveUser] = useState("Suresh");
+  const [activeUser, setActiveUser] = useState("Anirudh");
   const [view,       setView]       = useState("expense");
 
   const [expenses,  setExpenses]  = useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_expenses")||"[]");}catch{return [];} });
@@ -971,7 +971,7 @@ export default function App() {
             {USERS.map(u=>(
               <button key={u} onClick={()=>setActiveUser(u)}
                 style={{ padding:"5px 12px", borderRadius:20, border:activeUser===u?"1px solid #FF475766":"1px solid #2a2a4a", background:activeUser===u?"#FF475711":"transparent", color:activeUser===u?"#FF7A85":"#9CA3AF", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
-                {u==="Suresh"?"👤":"👩"} {u}
+                {u==="Anirudh"?"👤":"👩"} {u}
               </button>
             ))}
           </div>
