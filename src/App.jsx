@@ -1019,6 +1019,170 @@ function BankTab({ onImport }) {
   );
 }
 
+
+// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
+function SettingsTab({ expenses, earnings, budgets, favourites, categories, onRestore }) {
+  const [importing,   setImporting]   = useState(false);
+  const [importMsg,   setImportMsg]   = useState(null); // {type:"ok"|"err", text}
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingData, setPendingData] = useState(null);
+  const fileRef = useRef();
+
+  // ── Export as JSON backup ──────────────────────────────────────────────────
+  function exportBackup() {
+    const backup = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      expenses,
+      earnings,
+      budgets,
+      favourites,
+      categories,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    const date = new Date().toISOString().split("T")[0];
+    a.href = url; a.download = `spendwise-backup-${date}.json`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Export all expenses as CSV ─────────────────────────────────────────────
+  function exportCSV() {
+    const rows = [
+      ["Date","User","Description","Category","Tag","Amount","Recurring","Source"],
+      ...expenses.map(e=>[e.date,e.user,`"${e.description}"`,e.category,e.tag||"",e.amount,e.recurring?"yes":"no",e.source||"manual"]),
+    ];
+    const blob = new Blob([rows.map(r=>r.join(",")).join("\n")], { type:"text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `spendwise-expenses-${new Date().toISOString().split("T")[0]}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Import JSON backup ─────────────────────────────────────────────────────
+  async function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    setImporting(true); setImportMsg(null);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.expenses || !data.earnings) throw new Error("Invalid backup file — missing required fields.");
+      setPendingData(data);
+      setShowConfirm(true);
+    } catch(err) {
+      setImportMsg({ type:"err", text: err.message || "Could not read file." });
+    }
+    setImporting(false);
+  }
+
+  function confirmRestore() {
+    onRestore(pendingData);
+    setPendingData(null);
+    setShowConfirm(false);
+    setImportMsg({ type:"ok", text: `Restored ${pendingData?.expenses?.length||0} expenses, ${pendingData?.earnings?.length||0} earnings from backup.` });
+  }
+
+  const statItems = [
+    ["💳 Total Expenses", expenses.length],
+    ["💰 Total Earnings", earnings.length],
+    ["⭐ Favourites",    favourites.length],
+    ["🏷️ Categories",    categories.length],
+    ["👤 Users",         [...new Set(expenses.map(e=>e.user))].length || 1],
+  ];
+
+  return (
+    <div>
+      <div style={{ fontSize:18, fontWeight:700, marginBottom:4 }}>Settings</div>
+      <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:20 }}>Backup, restore & app data</div>
+
+      {/* Data summary */}
+      <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #E8E6DE", padding:16, marginBottom:14 }}>
+        <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>Your Data</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          {statItems.map(([label,val])=>(
+            <div key={label} style={{ background:"#FAFAF7", borderRadius:10, padding:"10px 12px", border:"1px solid #F0EFE8" }}>
+              <div style={{ fontSize:11, color:"#9CA3AF", marginBottom:3 }}>{label}</div>
+              <div style={{ fontSize:18, fontWeight:700, color:"#1A1A1A" }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Export */}
+      <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #E8E6DE", padding:16, marginBottom:14 }}>
+        <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:4 }}>Export & Backup</div>
+        <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:14 }}>Save your data before switching devices or re-installing.</div>
+        <button onClick={exportBackup}
+          style={{ width:"100%", padding:13, borderRadius:12, border:"none", background:"linear-gradient(135deg,#FF6B35,#FF4757)", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", marginBottom:10 }}>
+          📦 Download Full Backup (.json)
+        </button>
+        <button onClick={exportCSV}
+          style={{ width:"100%", padding:13, borderRadius:12, border:"1px solid #E0DDD4", background:"#FAFAF7", color:"#1A1A1A", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+          📊 Export Expenses as CSV
+        </button>
+        <div style={{ fontSize:11, color:"#9CA3AF", marginTop:10, lineHeight:1.6 }}>
+          💡 The <strong>.json backup</strong> saves everything — expenses, earnings, budgets, favourites, and custom categories. Use it to fully restore later.{" "}
+          The <strong>CSV</strong> is for viewing in Excel/Sheets.
+        </div>
+      </div>
+
+      {/* Import / Restore */}
+      <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #E8E6DE", padding:16, marginBottom:14 }}>
+        <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:4 }}>Restore from Backup</div>
+        <div style={{ fontSize:12, color:"#9CA3AF", marginBottom:14 }}>Upload a previously downloaded <code>.json</code> backup to restore all your data.</div>
+
+        <input ref={fileRef} type="file" accept=".json" style={{ display:"none" }} onChange={handleFileSelect} />
+        <button onClick={()=>fileRef.current.click()} disabled={importing}
+          style={{ width:"100%", padding:13, borderRadius:12, border:"2px dashed #22C55E66", background:"#22C55E08", color:"#22C55E", fontSize:14, fontWeight:700, cursor:"pointer", opacity:importing?0.6:1 }}>
+          {importing ? "⏳ Reading file..." : "📂 Choose Backup File (.json)"}
+        </button>
+
+        {importMsg && (
+          <div style={{ marginTop:12, padding:"11px 14px", borderRadius:10,
+            background: importMsg.type==="ok" ? "#ECFDF5" : "#FEF2F2",
+            border: `1px solid ${importMsg.type==="ok" ? "#A7F3D0" : "#FECACA"}`,
+            color: importMsg.type==="ok" ? "#065F46" : "#991B1B",
+            fontSize:13 }}>
+            {importMsg.type==="ok" ? "✅ " : "⚠️ "}{importMsg.text}
+          </div>
+        )}
+      </div>
+
+      {/* Confirm restore modal */}
+      {showConfirm && pendingData && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#FFFFFF", borderRadius:20, padding:24, width:"100%", maxWidth:380 }}>
+            <div style={{ fontSize:28, textAlign:"center", marginBottom:8 }}>⚠️</div>
+            <div style={{ fontSize:16, fontWeight:700, textAlign:"center", marginBottom:8 }}>Replace All Data?</div>
+            <div style={{ fontSize:13, color:"#6B7280", textAlign:"center", marginBottom:6 }}>
+              This will replace your current data with the backup from:
+            </div>
+            <div style={{ fontSize:12, color:"#FF4757", fontWeight:600, textAlign:"center", marginBottom:6 }}>
+              {new Date(pendingData.exportedAt).toLocaleString()}
+            </div>
+            <div style={{ fontSize:12, color:"#6B7280", textAlign:"center", marginBottom:20 }}>
+              {pendingData.expenses?.length||0} expenses · {pendingData.earnings?.length||0} earnings
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>{ setShowConfirm(false); setPendingData(null); }}
+                style={{ flex:1, padding:12, borderRadius:12, border:"1px solid #E0DDD4", background:"transparent", color:"#6B7280", fontSize:14, cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button onClick={confirmRestore}
+                style={{ flex:1, padding:12, borderRadius:12, border:"none", background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                ✅ Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [activeUser, setActiveUser] = useState("Anirudh");
@@ -1030,6 +1194,15 @@ export default function App() {
   const [favourites,setFavourites]= useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_favs")   ||"[]"); }catch{return [];} });
   const [categories,setCategories]= useState(()=>{ try{ const s=localStorage.getItem("spendwise_cats"); return s?JSON.parse(s):DEFAULT_CATEGORIES; }catch{return DEFAULT_CATEGORIES;} });
   const [showCatMgr, setShowCatMgr] = useState(false);
+
+  // Restore from backup
+  function restoreBackup(data) {
+    if (data.expenses)   setExpenses(data.expenses);
+    if (data.earnings)   setEarnings(data.earnings);
+    if (data.budgets)    setBudgets(data.budgets);
+    if (data.favourites) setFavourites(data.favourites);
+    if (data.categories) setCategories(data.categories);
+  }
   const [savingsGoal,setSavingsGoal]=useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_goal")  ||'{"target":0,"saved":0}');}catch{return {target:0,saved:0};} });
 
   useEffect(()=>localStorage.setItem("spendwise_expenses",JSON.stringify(expenses)),  [expenses]);
@@ -1097,6 +1270,7 @@ export default function App() {
     {id:"earning",icon:"➕",label:"Earn"},
     {id:"stats",  icon:"📈",label:"Stats"},
     {id:"bank",   icon:"🏦",label:"Bank"},
+    {id:"settings",icon:"⚙️",label:"Settings"},
   ];
 
   return (
@@ -1125,6 +1299,7 @@ export default function App() {
         {view==="earning" && <AddEarningTab user={activeUser} earnings={earnings} onAdd={addEarning} onDelete={deleteEarning} onEdit={editEarning} />}
         {view==="stats"   && <StatsTab user={activeUser} expenses={expenses} earnings={earnings} categories={categories} />}
         {view==="bank"    && <BankTab onImport={importBank} />}
+        {view==="settings" && <SettingsTab expenses={expenses} earnings={earnings} budgets={budgets} favourites={favourites} categories={categories} onRestore={restoreBackup} />}
       </div>
 
       {showCatMgr && <CategoryManagerModal categories={categories} onSave={cats=>{ setCategories(cats); setShowCatMgr(false); }} onClose={()=>setShowCatMgr(false)} />}
