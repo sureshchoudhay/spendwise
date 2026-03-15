@@ -3,7 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).toString();
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { id:"food",          label:"Food & Dining",    icon:"🍜", color:"#FF6B6B" },
   { id:"transport",     label:"Transport",         icon:"🚇", color:"#0EA5E9" },
   { id:"shopping",      label:"Shopping",          icon:"🛍️", color:"#45B7D1" },
@@ -21,13 +21,13 @@ const EARNING_TYPES = [
   { id:"bonus",     label:"Bonus",     icon:"🎁" },
   { id:"other",     label:"Other",     icon:"💰" },
 ];
-const USERS  = ["Suresh", "Bella"];
+const USERS  = ["Anirudh", "Wifey"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const genId       = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const getMonthKey = d  => { const x = new Date(d); return `${x.getFullYear()}-${x.getMonth()}`; };
-const getCatInfo  = id => CATEGORIES.find(c => c.id === id) ?? CATEGORIES.at(-1);
+const getCatInfo  = (id, cats) => (cats||DEFAULT_CATEGORIES).find(c => c.id === id) ?? (cats||DEFAULT_CATEGORIES).at(-1);
 const MonthLabel  = k  => { const [y,m] = k.split("-").map(Number); return `${MONTHS[m]} ${y}`; };
 const sumAmt      = arr => arr.reduce((s,e) => s + e.amount, 0);
 const today       = () => new Date().toISOString().split("T")[0];
@@ -107,13 +107,147 @@ function DonutChart({ data, size=130 }) {
   );
 }
 
+// ─── Category Manager Modal ───────────────────────────────────────────────────
+const EMOJI_OPTIONS = ["🍜","🚇","🛍️","🎬","💊","⚡","✈️","🛒","📚","📦","🍕","☕","🍺","🎮","🐾","👶","💇","🏋️","🎵","🎁","🏠","🚗","💻","📱","🌿","🧘","🎨","🏖️","🍷","🧴","💐","🎓","🛁","🔧","🧹","🌟"];
+const COLOR_OPTIONS = ["#FF6B6B","#FF4757","#FF6B35","#F59E0B","#22C55E","#4ECDC4","#45B7D1","#0EA5E9","#6366F1","#A855F7","#EC4899","#96CEB4","#DDA0DD","#98D8C8","#F7DC6F","#82E0AA","#AEB6BF","#F4A261","#E76F51","#2A9D8F"];
+
+function CategoryManagerModal({ categories, onSave, onClose }) {
+  const [cats,       setCats]       = useState(categories);
+  const [editingCat, setEditingCat] = useState(false);  // false or "new"
+  const [newLabel,   setNewLabel]   = useState("");
+  const [newEmoji,   setNewEmoji]   = useState("🌟");
+  const [newColor,   setNewColor]   = useState("#FF6B6B");
+  const [showEmoji,  setShowEmoji]  = useState(false);
+  const [showColor,  setShowColor]  = useState(false);
+
+  const builtInIds = DEFAULT_CATEGORIES.map(c => c.id);
+
+  function addCustom() {
+    if (!newLabel.trim()) return;
+    const id = "custom_" + genId();
+    setCats(p => [...p, { id, label: newLabel.trim(), icon: newEmoji, color: newColor, custom: true }]);
+    setNewLabel(""); setNewEmoji("🌟"); setNewColor("#FF6B6B");
+    setEditingCat(false); setShowEmoji(false); setShowColor(false);
+  }
+
+  function deleteCat(id) {
+    setCats(p => p.filter(c => c.id !== id));
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
+      <div style={{ background:"#FAFAF7", borderRadius:"20px 20px 0 0", padding:"20px 18px 40px", width:"100%", maxWidth:480, maxHeight:"88vh", overflowY:"auto" }} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <div style={{ fontSize:16, fontWeight:700 }}>Manage Categories</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:"#9CA3AF", fontSize:22, cursor:"pointer" }}>✕</button>
+        </div>
+
+        {/* Category list */}
+        <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #E8E6DE", marginBottom:14, overflow:"hidden" }}>
+          {cats.map((c, i) => (
+            <div key={c.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 14px", borderBottom: i < cats.length-1 ? "1px solid #F0EFE8" : "none" }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:`${c.color}18`, border:`1.5px solid ${c.color}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{c.icon}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:600 }}>{c.label}</div>
+                {c.custom && <div style={{ fontSize:10, color:"#9CA3AF", marginTop:1 }}>Custom</div>}
+              </div>
+              <div style={{ width:14, height:14, borderRadius:"50%", background:c.color, flexShrink:0 }} />
+              {/* Can delete built-ins too, but warn if in use */}
+              <button onClick={() => deleteCat(c.id)}
+                style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, color:"#EF4444", width:28, height:28, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, cursor:"pointer", flexShrink:0 }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Add custom category form */}
+        {editingCat === "new" ? (
+          <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #E8E6DE", padding:14, marginBottom:14 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:12 }}>New Category</div>
+
+            {/* Preview */}
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:`${newColor}18`, border:`2px solid ${newColor}66`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>{newEmoji}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:600, color: newLabel ? "#1A1A1A" : "#9CA3AF" }}>{newLabel || "Category name"}</div>
+                <div style={{ fontSize:10, color: newColor, marginTop:2 }}>Custom</div>
+              </div>
+            </div>
+
+            {/* Name input */}
+            <input value={newLabel} onChange={e=>setNewLabel(e.target.value)}
+              placeholder="e.g. Pet Care, Date Night..."
+              style={{ width:"100%", border:"1px solid #E0DDD4", borderRadius:10, padding:"10px 12px", fontSize:14, color:"#1A1A1A", background:"#FAFAF7", outline:"none", boxSizing:"border-box", marginBottom:10 }} />
+
+            {/* Emoji picker toggle */}
+            <button onClick={()=>{ setShowEmoji(e=>!e); setShowColor(false); }}
+              style={{ width:"100%", padding:"9px", borderRadius:10, border:"1px solid #E0DDD4", background:"#FAFAF7", fontSize:13, cursor:"pointer", marginBottom:8, textAlign:"left", color:"#1A1A1A" }}>
+              {showEmoji ? "▲" : "▼"} Icon: {newEmoji}
+            </button>
+            {showEmoji && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(9,1fr)", gap:6, marginBottom:10, padding:10, background:"#F5F4EF", borderRadius:10 }}>
+                {EMOJI_OPTIONS.map(em => (
+                  <button key={em} onClick={()=>{ setNewEmoji(em); setShowEmoji(false); }}
+                    style={{ padding:"6px", borderRadius:8, border:newEmoji===em?"2px solid #FF4757":"2px solid transparent", background:newEmoji===em?"#FF475711":"transparent", fontSize:18, cursor:"pointer" }}>
+                    {em}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Color picker toggle */}
+            <button onClick={()=>{ setShowColor(c=>!c); setShowEmoji(false); }}
+              style={{ width:"100%", padding:"9px", borderRadius:10, border:"1px solid #E0DDD4", background:"#FAFAF7", fontSize:13, cursor:"pointer", marginBottom:8, textAlign:"left", color:"#1A1A1A", display:"flex", alignItems:"center", gap:8 }}>
+              {showColor ? "▲" : "▼"} Color: <span style={{ display:"inline-block", width:14, height:14, borderRadius:"50%", background:newColor }} />
+            </button>
+            {showColor && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10, padding:10, background:"#F5F4EF", borderRadius:10 }}>
+                {COLOR_OPTIONS.map(col => (
+                  <button key={col} onClick={()=>{ setNewColor(col); setShowColor(false); }}
+                    style={{ width:28, height:28, borderRadius:"50%", background:col, border:newColor===col?"3px solid #1A1A1A":"2px solid transparent", cursor:"pointer", flexShrink:0 }} />
+                ))}
+              </div>
+            )}
+
+            <div style={{ display:"flex", gap:8, marginTop:4 }}>
+              <button onClick={()=>{ setEditingCat(false); setShowEmoji(false); setShowColor(false); }}
+                style={{ flex:1, padding:"10px", borderRadius:10, border:"1px solid #E0DDD4", background:"transparent", color:"#6B7280", fontSize:13, cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button onClick={addCustom} disabled={!newLabel.trim()}
+                style={{ flex:2, padding:"10px", borderRadius:10, border:"none", background: newLabel.trim()?"linear-gradient(135deg,#FF6B35,#FF4757)":"#E8E6DE", color: newLabel.trim()?"#fff":"#9CA3AF", fontSize:13, fontWeight:700, cursor: newLabel.trim()?"pointer":"default" }}>
+                ＋ Add Category
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={()=>setEditingCat("new")}
+            style={{ width:"100%", padding:"12px", borderRadius:12, border:"2px dashed #FF475766", background:"#FF475708", color:"#FF4757", fontSize:13, fontWeight:600, cursor:"pointer", marginBottom:14 }}>
+            ＋ Add Custom Category
+          </button>
+        )}
+
+        {/* Save */}
+        <button onClick={()=>onSave(cats)}
+          style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#FF6B35,#FF4757)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
-function EditExpenseModal({ expense, onSave, onClose }) {
+function EditExpenseModal({ expense, onSave, onClose, categories }) {
   const [tag,      setTag]      = useState(expense.tag || "personal");
   const [category, setCategory] = useState(expense.category);
   const [amount,   setAmount]   = useState(String(expense.amount));
   const [desc,     setDesc]     = useState(expense.description);
   const [date,     setDate]     = useState(expense.date);
+  const CATS = categories || DEFAULT_CATEGORIES;
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:100, display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
@@ -133,7 +267,7 @@ function EditExpenseModal({ expense, onSave, onClose }) {
         <div style={{ marginBottom:16 }}>
           <span style={SL}>Category</span>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6 }}>
-            {CATEGORIES.map(c=>(
+            {CATS.map(c=>(
               <div key={c.id} onClick={()=>setCategory(c.id)} style={{ padding:"8px 4px", borderRadius:10, border:category===c.id?`2px solid ${c.color}`:"2px solid #E8E6DE", background:category===c.id?`${c.color}18`:"#F0EFE8", cursor:"pointer", textAlign:"center" }}>
                 <div style={{ fontSize:18 }}>{c.icon}</div>
                 <div style={{ fontSize:8, color:category===c.id?c.color:"#9CA3AF", marginTop:1 }}>{c.label.split(" ")[0]}</div>
@@ -189,9 +323,9 @@ function EditEarningModal({ earning, onSave, onClose }) {
 }
 
 // ─── Expense Row (with swipe-to-reveal actions) ───────────────────────────────
-function ExpRow({ e, onDelete, onEdit }) {
+function ExpRow({ e, onDelete, onEdit, categories }) {
   const [open, setOpen] = useState(false);
-  const cat = getCatInfo(e.category);
+  const cat = getCatInfo(e.category, categories);
   return (
     <div style={{ position:"relative", overflow:"hidden", borderRadius:10, marginBottom:2 }}>
       {/* Action buttons revealed on tap */}
@@ -281,7 +415,7 @@ function BudgetCard({ tag, icon, color, spent, budget, onSetBudget, lastMonthAmt
 }
 
 // ─── HOME TAB ─────────────────────────────────────────────────────────────────
-function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, setSavingsGoal, streak }) {
+function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, setSavingsGoal, streak, categories }) {
   const now          = new Date();
   const thisMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
   const dayOfMonth   = now.getDate();
@@ -405,7 +539,7 @@ function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, s
         <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:12 }}>Recent</div>
         {recent.length===0
           ? <div style={{ textAlign:"center", color:"#4B5563", padding:"16px 0", fontSize:13 }}>No expenses yet. Tap ➖ to add!</div>
-          : recent.map(e=><ExpRow key={e.id} e={e} onDelete={()=>{}} onEdit={()=>{}} />)
+          : recent.map(e=><ExpRow key={e.id} e={e} onDelete={()=>{}} onEdit={()=>{}} categories={categories} />)
         }
       </div>
     </div>
@@ -413,7 +547,7 @@ function HomeTab({ user, expenses, earnings, budgets, setBudgets, savingsGoal, s
 }
 
 // ─── ADD EXPENSE TAB ──────────────────────────────────────────────────────────
-function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, onToggleFav }) {
+function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, onToggleFav, categories, onManageCategories }) {
   const now = new Date();
   const [tag,       setTag]       = useState("personal");
   const [category,  setCategory]  = useState("food");
@@ -434,7 +568,7 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
 
   function handleAdd() {
     if (!amount) return;
-    const cat = getCatInfo(category);
+    const cat = getCatInfo(category, categories);
     const finalDesc = desc.trim() || cat.label;
     onAdd({ tag, category, amount:parseFloat(amount), description:finalDesc, date, recurring });
     setAmount(""); setDesc(""); setRecurring(false);
@@ -460,7 +594,7 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
           </div>
           <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4 }}>
             {favourites.map((f,i)=>{
-              const cat=getCatInfo(f.category);
+              const cat=getCatInfo(f.category, categories);
               return (
                 <div key={i} style={{ position:"relative", flexShrink:0 }}>
                   <button onClick={()=>!editingFavs && handleQuickAdd(f)}
@@ -498,9 +632,12 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
 
       {/* Category */}
       <div style={{ marginBottom:16 }}>
-        <span style={SL}>Category</span>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <span style={{ fontSize:12, color:"#9CA3AF" }}>Category</span>
+          <button onClick={onManageCategories} style={{ background:"none", border:"none", color:"#FF4757", fontSize:11, cursor:"pointer", padding:0, fontWeight:600 }}>⚙️ Manage</button>
+        </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8 }}>
-          {CATEGORIES.map(c=>(
+          {categories.map(c=>(
             <div key={c.id} onClick={()=>setCategory(c.id)} style={{ padding:"9px 4px", borderRadius:12, border:category===c.id?`2px solid ${c.color}`:"2px solid #E8E6DE", background:category===c.id?`${c.color}18`:"#FFFFFF", cursor:"pointer", textAlign:"center" }}>
               <div style={{ fontSize:20 }}>{c.icon}</div>
               <div style={{ fontSize:9, color:category===c.id?c.color:"#9CA3AF", marginTop:2 }}>{c.label.split(" ")[0]}</div>
@@ -510,7 +647,7 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
       </div>
 
       <div style={{ marginBottom:12 }}><label style={SL}>Amount ($)</label><input style={SI} type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
-      <div style={{ marginBottom:12 }}><label style={SL}>Description (optional)</label><input style={SI} type="text" placeholder={getCatInfo(category).label} value={desc} onChange={e=>setDesc(e.target.value)} /></div>
+      <div style={{ marginBottom:12 }}><label style={SL}>Description (optional)</label><input style={SI} type="text" placeholder={getCatInfo(category, categories).label} value={desc} onChange={e=>setDesc(e.target.value)} /></div>
       <div style={{ marginBottom:12 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
 
       {/* Recurring + Favourite */}
@@ -537,11 +674,11 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
       <div style={SC}>
         {filtered.length===0
           ? <div style={{ textAlign:"center", color:"#4B5563", padding:"16px 0", fontSize:13 }}>No transactions found.</div>
-          : filtered.map(e=><ExpRow key={e.id} e={e} onDelete={onDelete} onEdit={setEditTarget} />)
+          : filtered.map(e=><ExpRow key={e.id} e={e} onDelete={onDelete} onEdit={setEditTarget} categories={categories} />)
         }
       </div>
 
-      {editTarget && <EditExpenseModal expense={editTarget} onSave={data=>{ onEdit(editTarget.id, data); setEditTarget(null); }} onClose={()=>setEditTarget(null)} />}
+      {editTarget && <EditExpenseModal expense={editTarget} categories={categories} onSave={data=>{ onEdit(editTarget.id, data); setEditTarget(null); }} onClose={()=>setEditTarget(null)} />}
     </div>
   );
 }
@@ -614,7 +751,7 @@ function AddEarningTab({ user, earnings, onAdd, onDelete, onEdit }) {
 }
 
 // ─── STATS TAB ────────────────────────────────────────────────────────────────
-function StatsTab({ user, expenses, earnings }) {
+function StatsTab({ user, expenses, earnings, categories }) {
   const now          = new Date();
   const dayOfMonth   = now.getDate();
   const thisMonthKey = `${now.getFullYear()}-${now.getMonth()}`;
@@ -634,7 +771,7 @@ function StatsTab({ user, expenses, earnings }) {
   const prevSpent   = sumAmt(prevFiltered);
   const vs          = thisSpent - prevSpent;
   const vsPct       = prevSpent>0?(vs/prevSpent)*100:0;
-  const byCat       = CATEGORIES.map(c=>({...c,value:sumAmt(filtered.filter(e=>e.category===c.id))})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
+  const byCat       = categories.map(c=>({...c,value:sumAmt(filtered.filter(e=>e.category===c.id))})).filter(c=>c.value>0).sort((a,b)=>b.value-a.value);
 
   // 6-month trend
   const trendMonths = Array.from({length:6},(_,i)=>{ const d=new Date(now.getFullYear(),now.getMonth()-5+i,1); return `${d.getFullYear()}-${d.getMonth()}`; });
@@ -766,7 +903,7 @@ function StatsTab({ user, expenses, earnings }) {
           {/* All transactions */}
           <div style={SC}>
             <div style={{ fontSize:11, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:10 }}>All Transactions</div>
-            {[...filtered].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=><ExpRow key={e.id} e={e} onDelete={()=>{}} onEdit={()=>{}} />)}
+            {[...filtered].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=><ExpRow key={e.id} e={e} onDelete={()=>{}} onEdit={()=>{}} categories={categories} />)}
           </div>
         </>
       )}
@@ -857,7 +994,7 @@ function BankTab({ onImport }) {
         <div style={SC}>
           <div style={{ fontSize:12, color:"#9CA3AF", fontWeight:600, marginBottom:4 }}>FOUND {bankResults.length} TRANSACTIONS</div>
           <div style={{ fontSize:11, color:"#6B7280", marginBottom:12 }}>Total: <span style={{ color:"#FF4757", fontWeight:600 }}>${bankResults.reduce((s,r)=>s+parseFloat(r.amount||0),0).toFixed(2)}</span></div>
-          {bankResults.map((r,i)=>{ const cat=getCatInfo(r.category); return (
+          {bankResults.map((r,i)=>{ const cat=getCatInfo(r.category, []); return (
             <div key={i} style={{ display:"flex", alignItems:"center", padding:"9px 0", borderBottom:"1px solid #1a1a2e", gap:12 }}>
               <div style={{ width:34, height:34, borderRadius:9, background:`${cat.color}22`, border:`1.5px solid ${cat.color}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>{cat.icon}</div>
               <div style={{ flex:1, minWidth:0 }}>
@@ -884,19 +1021,22 @@ function BankTab({ onImport }) {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [activeUser, setActiveUser] = useState("Suresh");
+  const [activeUser, setActiveUser] = useState("Anirudh");
   const [view,       setView]       = useState("expense");
 
   const [expenses,  setExpenses]  = useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_expenses")||"[]");}catch{return [];} });
   const [earnings,  setEarnings]  = useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_earnings")||"[]");}catch{return [];} });
   const [budgets,   setBudgets]   = useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_budgets") ||"{}"); }catch{return {};} });
   const [favourites,setFavourites]= useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_favs")   ||"[]"); }catch{return [];} });
+  const [categories,setCategories]= useState(()=>{ try{ const s=localStorage.getItem("spendwise_cats"); return s?JSON.parse(s):DEFAULT_CATEGORIES; }catch{return DEFAULT_CATEGORIES;} });
+  const [showCatMgr, setShowCatMgr] = useState(false);
   const [savingsGoal,setSavingsGoal]=useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_goal")  ||'{"target":0,"saved":0}');}catch{return {target:0,saved:0};} });
 
   useEffect(()=>localStorage.setItem("spendwise_expenses",JSON.stringify(expenses)),  [expenses]);
   useEffect(()=>localStorage.setItem("spendwise_earnings",JSON.stringify(earnings)),  [earnings]);
   useEffect(()=>localStorage.setItem("spendwise_budgets", JSON.stringify(budgets)),   [budgets]);
   useEffect(()=>localStorage.setItem("spendwise_favs",    JSON.stringify(favourites)),[favourites]);
+  useEffect(()=>localStorage.setItem("spendwise_cats",    JSON.stringify(categories)), [categories]);
   useEffect(()=>localStorage.setItem("spendwise_goal",    JSON.stringify(savingsGoal)),[savingsGoal]);
 
   // Sync savings goal with actual saved amount
@@ -971,7 +1111,7 @@ export default function App() {
             {USERS.map(u=>(
               <button key={u} onClick={()=>setActiveUser(u)}
                 style={{ padding:"5px 12px", borderRadius:20, border:activeUser===u?"1px solid #FF475766":"1px solid #2a2a4a", background:activeUser===u?"#FF475711":"transparent", color:activeUser===u?"#FF7A85":"#9CA3AF", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
-                {u==="Suresh"?"👤":"👩"} {u}
+                {u==="Anirudh"?"👤":"👩"} {u}
               </button>
             ))}
           </div>
@@ -980,13 +1120,14 @@ export default function App() {
 
       {/* Content */}
       <div style={{ padding:"18px 18px 100px" }}>
-        {view==="home"    && <HomeTab user={activeUser} expenses={expenses} earnings={earnings} budgets={budgets} setBudgets={setBudgets} savingsGoal={savingsGoal} setSavingsGoal={setSavingsGoal} streak={streak} />}
-        {view==="expense" && <AddExpenseTab user={activeUser} expenses={expenses} onAdd={addExpense} onDelete={deleteExpense} onEdit={editExpense} favourites={favourites} onToggleFav={toggleFav} />}
+        {view==="home"    && <HomeTab user={activeUser} expenses={expenses} earnings={earnings} budgets={budgets} setBudgets={setBudgets} savingsGoal={savingsGoal} setSavingsGoal={setSavingsGoal} streak={streak} categories={categories} />}
+        {view==="expense" && <AddExpenseTab user={activeUser} expenses={expenses} onAdd={addExpense} onDelete={deleteExpense} onEdit={editExpense} favourites={favourites} onToggleFav={toggleFav} categories={categories} onManageCategories={()=>setShowCatMgr(true)} />}
         {view==="earning" && <AddEarningTab user={activeUser} earnings={earnings} onAdd={addEarning} onDelete={deleteEarning} onEdit={editEarning} />}
-        {view==="stats"   && <StatsTab user={activeUser} expenses={expenses} earnings={earnings} />}
+        {view==="stats"   && <StatsTab user={activeUser} expenses={expenses} earnings={earnings} categories={categories} />}
         {view==="bank"    && <BankTab onImport={importBank} />}
       </div>
 
+      {showCatMgr && <CategoryManagerModal categories={categories} onSave={cats=>{ setCategories(cats); setShowCatMgr(false); }} onClose={()=>setShowCatMgr(false)} />}
       {/* Bottom nav */}
       <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"rgba(250,250,247,0.98)", backdropFilter:"blur(16px)", borderTop:"1px solid #E8E6DE", boxShadow:"0 -4px 20px rgba(0,0,0,0.06)", padding:"10px 12px 28px", display:"flex", gap:4 }}>
         {tabs.map(t=>{ const active=view===t.id; return (
