@@ -65,7 +65,7 @@ async function categorizeStatement(text) {
 }
 
 // ─── Shared UI atoms ──────────────────────────────────────────────────────────
-const SI = { width:"100%", background:"#F0EFE8", border:"1px solid #2a2a4a", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box" };
+const SI = { width:"100%", background:"#F0EFE8", border:"1px solid #E0DDD4", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box" };
 const SL = { fontSize:12, color:"#9CA3AF", marginBottom:6, display:"block" };
 const SC = { background:"#FFFFFF", borderRadius:16, padding:16, border:"1px solid #E8E6DE", marginBottom:12 };
 
@@ -277,7 +277,11 @@ function EditExpenseModal({ expense, onSave, onClose, categories }) {
         </div>
         <div style={{ marginBottom:12 }}><label style={SL}>Amount ($)</label><input style={SI} type="number" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
         <div style={{ marginBottom:12 }}><label style={SL}>Description</label><input style={SI} type="text" value={desc} onChange={e=>setDesc(e.target.value)} /></div>
-        <div style={{ marginBottom:20 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+        <div style={{ marginBottom:20 }}>
+          <label style={SL}>Date</label>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+            style={{ width:"100%", background:"#F0EFE8", border:"1px solid #E0DDD4", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none" }} />
+        </div>
         <button onClick={()=>onSave({ tag, category, amount:parseFloat(amount)||0, description:desc, date })}
           style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#FF6B35,#FF4757)", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
           Save Changes
@@ -312,7 +316,11 @@ function EditEarningModal({ earning, onSave, onClose }) {
         </div>
         <div style={{ marginBottom:12 }}><label style={SL}>Amount ($)</label><input style={SI} type="number" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
         <div style={{ marginBottom:12 }}><label style={SL}>Description</label><input style={SI} type="text" value={desc} onChange={e=>setDesc(e.target.value)} /></div>
-        <div style={{ marginBottom:20 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+        <div style={{ marginBottom:20 }}>
+          <label style={SL}>Date</label>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+            style={{ width:"100%", background:"#F0EFE8", border:"1px solid #E0DDD4", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none" }} />
+        </div>
         <button onClick={()=>onSave({ type, amount:parseFloat(amount)||0, description:desc, date })}
           style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer" }}>
           Save Changes
@@ -648,7 +656,11 @@ function AddExpenseTab({ user, expenses, onAdd, onDelete, onEdit, favourites, on
 
       <div style={{ marginBottom:12 }}><label style={SL}>Amount ($)</label><input style={SI} type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
       <div style={{ marginBottom:12 }}><label style={SL}>Description (optional)</label><input style={SI} type="text" placeholder={getCatInfo(category, categories).label} value={desc} onChange={e=>setDesc(e.target.value)} /></div>
-      <div style={{ marginBottom:12 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+      <div style={{ marginBottom:12 }}>
+          <label style={SL}>Date</label>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+            style={{ width:"100%", background:"#F0EFE8", border:"1px solid #E0DDD4", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none" }} />
+        </div>
 
       {/* Recurring + Favourite */}
       <div style={{ display:"flex", gap:8, marginBottom:16 }}>
@@ -740,7 +752,11 @@ function AddEarningTab({ user, earnings, onAdd, onDelete, onEdit }) {
       </div>
       <div style={{ marginBottom:12 }}><label style={SL}>Amount ($)</label><input style={SI} type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)} /></div>
       <div style={{ marginBottom:12 }}><label style={SL}>Description (optional)</label><input style={SI} type="text" placeholder={EARNING_TYPES.find(t=>t.id===type)?.label} value={desc} onChange={e=>setDesc(e.target.value)} /></div>
-      <div style={{ marginBottom:20 }}><label style={SL}>Date</label><input style={SI} type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+      <div style={{ marginBottom:20 }}>
+          <label style={SL}>Date</label>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+            style={{ width:"100%", background:"#F0EFE8", border:"1px solid #E0DDD4", borderRadius:10, padding:"11px 14px", color:"#1A1A1A", fontSize:14, outline:"none", boxSizing:"border-box", WebkitAppearance:"none", appearance:"none" }} />
+        </div>
       <button onClick={handleAdd} disabled={!amount}
         style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#000", fontSize:15, fontWeight:700, cursor:"pointer", opacity:amount?1:0.5 }}>
         Add Earning
@@ -1275,7 +1291,7 @@ export default function App() {
 
   return (
     <div style={{ background:"#FAFAF7", minHeight:"100vh", color:"#1A1A1A", fontFamily:"'Sora','DM Sans','Segoe UI',sans-serif", maxWidth:480, margin:"0 auto" }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} button{font-family:inherit} select{font-family:inherit}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} button{font-family:inherit} select{font-family:inherit} input[type="date"]{-webkit-appearance:none;appearance:none;min-height:44px;} input[type="date"]::-webkit-date-and-time-value{text-align:left;} input[type="date"]::-webkit-calendar-picker-indicator{opacity:0.5;cursor:pointer;}`}</style>
 
       {/* Header */}
       <div style={{ padding:"14px 20px 10px", borderBottom:"1px solid #E8E6DE", background:"rgba(250,250,247,0.97)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 }}>
