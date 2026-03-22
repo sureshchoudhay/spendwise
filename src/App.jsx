@@ -23,7 +23,7 @@ const EARNING_TYPES = [
 ];
 const EMOJI_OPTIONS = ["🍜","🚇","🛍️","🎬","💊","⚡","✈️","🛒","📚","📦","🍕","☕","🍺","🎮","🐾","👶","💇","🏋️","🎵","🎁","🏠","🚗","💻","📱","🌿","🧘","🎨","🏖️","🍷","🧴","💐","🎓","🛁","🔧","🧹","🌟"];
 const COLOR_OPTIONS  = ["#FF6B6B","#FF4757","#FF6B35","#F59E0B","#22C55E","#4ECDC4","#45B7D1","#0EA5E9","#6366F1","#A855F7","#EC4899","#96CEB4","#DDA0DD","#98D8C8","#F7DC6F","#82E0AA","#AEB6BF","#F4A261","#E76F51","#2A9D8F"];
-const USERS  = ["Anirudh", "Wifey"];
+const USERS  = ["Suresh", "Bella"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1049,7 +1049,7 @@ function SettingsTab({ expenses, earnings, budgets, favourites, categories, onRe
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [activeUser,setActiveUser] = useState("Anirudh");
+  const [activeUser,setActiveUser] = useState("Suresh");
   const [view,setView]             = useState("expense");
 
   const [expenses,  setExpenses]   = useState(()=>{ try{return JSON.parse(localStorage.getItem("spendwise_expenses")||"[]");}catch{return[];} });
@@ -1138,7 +1138,7 @@ export default function App() {
             {USERS.map(u=>(
               <button key={u} onClick={()=>setActiveUser(u)}
                 style={{ padding:"5px 12px", borderRadius:20, border:activeUser===u?"1px solid #FF475766":"1px solid #E0DDD4", background:activeUser===u?"#FF475711":"transparent", color:activeUser===u?"#FF4757":"#9CA3AF", fontSize:12, cursor:"pointer", fontWeight:activeUser===u?600:400 }}>
-                {u==="Anirudh"?"👤":"👩"} {u}
+                {u==="Suresh"?"👤":"👩"} {u}
               </button>
             ))}
           </div>
